@@ -34,4 +34,19 @@ solapan (x1, y1, ladoX1, ladoY1) (x2, y2, ladoX2, ladoY2) = (x1 + ladoX1 > x2) &
 
 -- Funcion: ladoColision --> dadas dos cajas que YA colisionan, devuelve el lado por el que colisionaron (Arriba, abajo izquierda o derecha), en funcion de por qué lado hay una menor mayor diferencia de posicion
 ladoColision :: CajaColision -> CajaColision -> String
-ladoColision (x1, y1, ladoX1, ladoY1) (x2, y2, ladoX2, ladoY2) = undefined
+ladoColision (x1, y1, ladoX1, ladoY1) (x2, y2, ladoX2, ladoY2)
+ | solapeLadoIzquierdo <= solapeLadoDerecho && solapeLadoIzquierdo <= solapeAbajo && solapeLadoIzquierdo <= solapeArriba = "Izquierda"
+ | solapeLadoDerecho <= solapeLadoIzquierdo && solapeLadoDerecho <= solapeArriba && solapeLadoDerecho <= solapeAbajo = "Derecha"
+ | solapeAbajo <= solapeLadoIzquierdo && solapeAbajo <= solapeLadoDerecho && solapeAbajo <= solapeArriba = "Abajo"
+ | otherwise = "Arriba"
+ where
+    solapeLadoIzquierdo = (x1 + ladoX1) - x2
+    solapeLadoDerecho = (x2 + ladoX2) - x1
+    solapeAbajo = (y1 + ladoY1) - y2
+    solapeArriba = (y2 + ladoY2) - y1
+
+-- 4 UTILIDADES DE LISTAS Y CADENAS
+
+-- Funcion: SplitOn --> dado un caracter separador y una cadena de caracteres, separa la cadena en trozos por cada caracter separador encontrado, luego, retorna una lista de String
+splitOn :: Char -> String -> [String]
+splitOn = undefined
