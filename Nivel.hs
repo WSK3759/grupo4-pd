@@ -1,6 +1,5 @@
---  FORMATO DE ENTREGA:
--- - Declaraciones de tipo (type) situadas al principio del fichero, antes de las funciones
--- - Cada función debe llevar su firma de tipos explícita y un comentario de una línea describiendo qué calcula
+--  Jesús Núñez Pelayo
+import Test.QuickCheck
 
 -- DECLARACIONES DE TIPO (tipos sinónimos):
 -- 1 VECTORES 2D
@@ -132,5 +131,40 @@ agruparRachas fila = posActual 0 fila
                     in (posicion, longitud) : posActual (posicion+longitud) resto
      | otherwise = posActual (posicion+1) f 
 
--- caso base: el caracter actual NO es solido -> sigo iterando
--- caso recursivo: el caracter actual == '#' -> sumo 1 más al contador en la columna actual
+-- BONUS: PROPIEDADES CON QuickCheck
+
+-- prop_suma_conmutativa: sumaVectores a b es igual a sumaVectores b a
+prop_suma_conmutativa :: Punto2D -> Punto2D -> Bool
+prop_suma_conmutativa v1 v2 = sumaVectores v1 v2 == sumaVectores v2 v1
+-- ghci> quickCheck prop_suma_conmutativa 
+-- +++ OK, passed 100 tests.
+
+-- : sumar en un orden u otro da el mismo resultado
+prop_suma_asociativa :: Punto2D -> Punto2D -> Bool
+prop_suma_asociativa (x1, y1) (x2, y2) = (x1 + x2) == (x2 + x1) && (y1 + y2) == (y2 + y1)
+-- ghci> quickCheck prop_suma_asociativa 
+-- +++ OK, passed 100 tests.
+
+-- : escalar un vector por 1 no lo cambia
+prop_escalar_neutro :: Punto2D -> Bool
+prop_escalar_neutro v1 = escalarVector 1 v1 == v1
+-- ghci> quickCheck prop_escalar_neutro 
+-- +++ OK, passed 100 tests.
+
+-- la distancia entre dos puntos nunca es negativa
+prop_distancia_no_negativa :: Punto2D -> Punto2D -> Bool
+prop_distancia_no_negativa v1 v2 = distancia v1 v2 >= 0
+-- ghci> quickCheck prop_distancia_no_negativa 
+-- +++ OK, passed 100 tests.
+
+-- la distancia de a a b es igual que de b a a
+prop_distancia_simetrica :: Punto2D -> Punto2D -> Bool
+prop_distancia_simetrica v1 v2 = distancia v1 v2 == distancia v2 v1
+-- ghci> quickCheck prop_distancia_simetrica 
+-- +++ OK, passed 100 tests.
+
+-- solapan a b es igual a solapan b a
+prop_solapan_simetrica :: CajaColision -> CajaColision -> Bool
+prop_solapan_simetrica caja1 caja2 = solapan caja1 caja2 == solapan caja2 caja1
+-- ghci> quickCheck prop_solapan_simetrica 
+-- +++ OK, passed 100 tests.
