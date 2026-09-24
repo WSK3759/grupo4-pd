@@ -1,0 +1,98 @@
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_suma_conmutativa
+
+<interactive>:109:1: error:
+    Variable not in scope:
+      quickCheck :: (Vector2D -> Vector2D -> Bool) -> t
+*Main> :r
+Ok, one module loaded.
+*Main> quickCheck prop_suma_conmutativa
+
+<interactive>:111:1: error:
+    Variable not in scope:
+      quickCheck :: (Vector2D -> Vector2D -> Bool) -> t
+*Main> :r                              
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+
+Nivel.hs:234:1: error: parse error on input `import'
+    |
+234 | import Test.QuickCheck
+    | ^^^^^^
+Failed, no modules loaded.
+Prelude> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+
+Nivel.hs:8:1: error:
+    Could not find module `QuickCheck'
+    Use -v to see a list of the files searched for.
+  |
+8 | import QuickCheck
+  | ^^^^^^^^^^^^^^^^^
+Failed, no modules loaded.
+Prelude> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_suma_conmutativa
++++ OK, passed 100 tests.
+*Main> :r
+Ok, one module loaded.
+*Main> :r                              
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_suma_asociativa 
+*** Failed! Falsified (after 12 tests and 9 shrinks):    
+(0.0,1.0)
+(0.0,-5.0)
+(0.0,0.4)
+*Main> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_escalar_neutro 
++++ OK, passed 100 tests.
+*Main> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_distancia_no_negativa
+*** Failed! Falsified (after 1 test):  
+(0.0,0.0)
+(0.0,0.0)
+*Main> :r                                   
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_distancia_no_negativa
++++ OK, passed 100 tests.
+*Main> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_distancia_simetrica
++++ OK, passed 100 tests.
+*Main> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck  prop_solapan_simetrica
++++ OK, passed 100 tests.
+*Main> :r
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_trim_idempotente
++++ OK, passed 100 tests.
+*Main> :r 
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_splitOn_sin_separador
++++ OK, passed 100 tests; 8 discarded.
+*Main> :r  
+[1 of 1] Compiling Main             ( Nivel.hs, interpreted )
+Ok, one module loaded.
+*Main> quickCheck prop_contarSiCumple_acotado
+
+<interactive>:134:1: error:
+    * No instance for (Show (Int -> Bool))
+        arising from a use of `quickCheck'
+        (maybe you haven't applied a function to enough arguments?)
+    * In the expression: quickCheck prop_contarSiCumple_acotado
+      In an equation for `it':
+          it = quickCheck prop_contarSiCumple_acotado
+*Main> quickCheck (prop_contarSiCumple_acotado even)
++++ OK, passed 100 tests.
