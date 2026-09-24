@@ -70,4 +70,8 @@ contarSiCumple :: (Int -> Bool) -> [Int] -> Int
 contarSiCumple _ [] = 0
 contarSiCumple f xs = sum [x | x <- xs, f x]
 
-
+-- Función: list2Vector2 --> Dada una lista de 2 o más numeros, la convierte en un vector/punto 2D; lanza un error si la lista no tiene al menos dos elementos.
+list2Vector2 :: [Double] -> Punto2D
+list2Vector2 [] = error "Una lista vacía no es posible convertir en Vector2"
+list2Vector2 [x] = error "Una lista de un solo elemento no es posible convertir en Vector2"
+list2Vector2 (x:y:_) = (x,y)
