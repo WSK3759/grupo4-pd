@@ -49,4 +49,25 @@ ladoColision (x1, y1, ladoX1, ladoY1) (x2, y2, ladoX2, ladoY2)
 
 -- Funcion: SplitOn --> dado un caracter separador y una cadena de caracteres, separa la cadena en trozos por cada caracter separador encontrado, luego, retorna una lista de String
 splitOn :: Char -> String -> [String]
-splitOn = undefined
+splitOn _ [] = [""]
+splitOn s (c:cs) 
+ | esSeparador c = "" : splitOn s cs
+ | otherwise = let (r:rs) = splitOn s cs in (c:r) : rs
+ where
+    esSeparador x = x == s
+
+-- Función: trim --> Elimina los espacios en blanco (espacios, tabuladores, saltos de línea) al principio y al final de una cadena
+trim :: String -> String
+trim "" = ""
+trim (c:cs)
+ | esCharEspecial c = trim cs
+ | otherwise = unwords (words cs)
+ where 
+    esCharEspecial x = x == '\t' || x == '\n'
+
+-- Función: contarSiCumple --> Cuenta cuántos elementos de una lista cumplen una condición dada
+contarSiCumple :: (Int -> Bool) -> [Int] -> Int
+contarSiCumple _ [] = 0
+contarSiCumple f xs = sum [x | x <- xs, f x]
+
+
