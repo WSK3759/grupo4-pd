@@ -7,7 +7,9 @@
 type Punto2D = (Double, Double) -- A. Definición del tipo sinónimo para un punto/vector 2D (1 Vectores 2D)
 -- 2 CAJAS DE COLISION
 type CajaColision = (Int, Int, Int, Int) -- B. Definición del tipo sinónimo para una delimitadora (2 Cajas de colisión)
-
+-- 5 PARSEO DEL NIVEL 
+type Celda = Char -- C. Definición del tipo sinonimo 'Celda' para representar una celda de un nivel como un carácter
+type Nivel = [[Celda]] -- D. Definición del tipo sinonimo 'Nivel' para representar un nivel completo como una serie de Celdas 
 
 -- 1 VECTORES 2D
 
@@ -75,3 +77,60 @@ list2Vector2 :: [Double] -> Punto2D
 list2Vector2 [] = error "Una lista vacía no es posible convertir en Vector2"
 list2Vector2 [x] = error "Una lista de un solo elemento no es posible convertir en Vector2"
 list2Vector2 (x:y:_) = (x,y)
+
+-- 5 PARSEO DE NIVEL
+
+-- Función: parsearNivel --> Convierte la lista de líneas de texto leídas de un fichero de nivel en la estructura de datos que representa el nivel completo.
+parsearNivel :: [String] -> Nivel
+parsearNivel [] = []
+parsearNivel (s:cs) 
+ | s /= [] = s : parsearNivel cs
+ | otherwise = parsearNivel cs
+
+-- Funcion: esSolido --> Indica si una celda es una plataforma sólida, identificando con pattern matching si es el caracter del convenio indicado
+esSolido :: Celda -> Bool
+esSolido '#' = True
+esSolido _ = False
+
+-- Funcion: esMeta --> Indica si una celda es la meta del nivel, identificando con pattern matching si es el caracter del convenio indicado
+esMeta :: Celda -> Bool
+esMeta 'M' = True
+esMeta _ = False
+
+-- Funcion: esVacio --> Indica si una celda está vacia, identificando con pattern matching si es el caracter del convenio indicado
+esVacio :: Celda -> Bool
+esVacio '.' = True
+esVacio _ = False
+
+-- Funcion: esEnemigo --> Indica si una celda marca el punto de inicio de un enemigo (cualquier carácter que no sea sólido, meta ni vacío), con logica de reutilizacion de las funciones anteriores
+esEnemigo :: Celda -> Bool
+esEnemigo c = not (esSolido c) && not (esMeta c) && not (esVacio c)
+
+-- Función: posicionesMeta --> Dado un nivel completo, devuelve la lista de posiciones (fila, columna) en las que aparece la meta
+posicionesMeta :: Nivel -> [(Int, Int)]
+posicionesMeta n = [(f,c) | (f, fila) <- zip [0..] n,
+                            (c, caracter) <- zip [0..] fila,
+                            caracter == 'M']
+
+-- Función: posicionesEnemigos --> Dado un nivel completo, devuelve la lista de posiciones y el identificador de cada enemigo (fila, columna, identificador).
+posicionesEnemigos :: Nivel -> [(Int, Int, Celda)]
+posicionesEnemigos nivel = [(f, c, identificador) | (f, fila) <- zip [0..] nivel,
+                                    (c, identificador) <- zip [0..] fila,
+                                    esEnemigo identificador]
+
+-- Función: agruparRachas --> Dada una fila de un nivel, agrupa las columnas ’#’ consecutivas en pares (columna de inicio, longitud de la racha)
+-- uso correcto de span/recursión con acumulador de índice, y manejo
+-- correcto de rachas al final de la fila o filas sin sólidos
+agruparRachas :: [Celda] -> [(Int, Int)]
+agruparRachas fila = posActual 0 fila
+ where
+    posActual :: Int -> [Celda] -> [(Int, Int)]
+    posActual _ [] = []
+    posActual posicion (c:f)
+     | esSolido c = let (racha, resto) = span (=='#') (c:f)
+                        longitud = length racha
+                    in (posicion, longitud) : posActual (posicion+longitud) resto
+     | otherwise = posActual (posicion+1) f 
+
+-- caso base: el caracter actual NO es solido -> sigo iterando
+-- caso recursivo: el caracter actual == '#' -> sumo 1 más al contador en la columna actual
