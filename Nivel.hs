@@ -1,8 +1,12 @@
 import Test.QuickCheck
 
--- 1. Vectores 2D
+-- Tipos
 type Vector2D = (Double, Double)
+type CajaColision = (Double, Double, Double, Double) -- Posición (x, y), Ancho y Alto
+type Celda = Char
+type Grid = [String] -- String de caracteres Celda, grid = [[Celda]]
 
+-- 1. Vectores 2D
 sumaVectores :: Vector2D -> Vector2D -> Vector2D
 sumaVectores v1 v2 = ((fst v1 + fst v2),(snd v1 + snd v2))
 
@@ -13,9 +17,6 @@ distancia :: Vector2D -> Vector2D -> Double
 distancia v1 v2 = sqrt((fst v1 - fst v2)^2 + (snd v1 - snd v2)^2)
 
 -- 2. Cajas de colisión
-
-type CajaColision = (Double, Double, Double, Double) -- Posición (x, y), Ancho y Alto
-
 solapan :: CajaColision -> CajaColision -> Bool
 solapan c1 c2 = (x1 < x2 + w2) && (y1 < y2 + h2) && (x2 < x1 + w1) && (y2 < y1 + h1) 
     where
@@ -79,10 +80,6 @@ list2Vector2 [x]  = error "head : Falta un elemento en la lista para convertir e
 list2Vector2 (x:y:_) = (x, y)
 
 -- 5. Parseo del nivel
-
-type Celda = Char
-type Grid = [String] -- String de caracteres Celda, grid = [[Celda]]
-
 -- Función: parsearNivel
 parsearNivel :: [String] -> Grid
 parsearNivel lineas = lineas 
