@@ -3,14 +3,10 @@
 -- Lógica pura del motor de niveles y colisiones
 -- Programación Declarativa — Curso 2026/2027
 ----------------------------------------------------------
-
-
 import Test.QuickCheck
 ----------------------------------------------------------
 -- 1 Vectores 2D
 ----------------------------------------------------------
-
-
 
 -- Definir un tipo sinónimo para un punto/*vector 2D*
 type Vector2D = (Double, Double)
