@@ -167,3 +167,21 @@ prop_splitOn_sin_separador c s = notElem c s ==> splitOn c s == [s]
 -- El resultado de contarSiCumple nunca es mayor que la longitud de la lista
 prop_contarSiCumple_acotado :: [Int] -> Bool
 prop_contarSiCumple_acotado xs = contarSiCumple even xs <= length xs
+
+-- * / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / /
+
+-- TAREA 2
+
+-- BLOQUE 1 - RECURSION
+-- 1 Reimplementación recursiva de las consultas del nivel 
+
+-- Funcion: posicionesMetaRec
+-- Dado el nivel completo, devuelve la lista de posiciones (fila, columna) en las que aparece la meta, recorriendo de forma recursiva las filas y las columnas, acumulando indice en cada llamada recursiva
+
+posicionesMetaRec :: Grid -> [(Int, Int)]
+posicionesMetaRec [] = []
+posicionesMetaRec nivel = posicionesMetaRecAux [] nivel
+
+posicionesMetaRecAux :: [(Int, Int)] -> Grid -> [(Int, Int)]
+posicionesMetaRecAux ac [] = ac
+posicionesMetaRecAux (x:xs) nivel = undefined
