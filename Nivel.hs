@@ -180,8 +180,15 @@ prop_contarSiCumple_acotado xs = contarSiCumple even xs <= length xs
 
 posicionesMetaRec :: Grid -> [(Int, Int)]
 posicionesMetaRec [] = []
-posicionesMetaRec nivel = posicionesMetaRecAux [] nivel
+posicionesMetaRec nivel = posicionesMetaRecAux 0 [] nivel
 
-posicionesMetaRecAux :: [(Int, Int)] -> Grid -> [(Int, Int)]
-posicionesMetaRecAux ac [] = ac
-posicionesMetaRecAux (x:xs) nivel = undefined
+posicionesMetaRecAux :: Int -> [(Int, Int)] -> Grid -> [(Int, Int)]
+posicionesMetaRecAux f ac [] = ac
+posicionesMetaRecAux f ac (fila:resto) = posicionesMetaRecAux (f+1) (recorreFila f 0 ac fila) resto
+
+recorreFila :: Int -> Int -> [(Int, Int)] -> [Celda] -> [(Int, Int)]
+recorreFila f c ac [] = ac
+recorreFila f c ac (celda:restoFila)
+ | esMeta celda = recorreFila f (c+1) (ac ++ [(f,c)]) restoFila
+ | otherwise = recorreFila f (c+1) ac restoFila
+
