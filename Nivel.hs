@@ -180,15 +180,27 @@ prop_contarSiCumple_acotado xs = contarSiCumple even xs <= length xs
 
 posicionesMetaRec :: Grid -> [(Int, Int)]
 posicionesMetaRec [] = []
-posicionesMetaRec nivel = posicionesMetaRecAux 0 [] nivel
+posicionesMetaRec nivel = posicionesMetaRecAux 0 [] nivel -- funcion auxiliar para recursion explícita con acumulador e indice de fila inicializado a 0
 
-posicionesMetaRecAux :: Int -> [(Int, Int)] -> Grid -> [(Int, Int)]
-posicionesMetaRecAux f ac [] = ac
+posicionesMetaRecAux :: Int -> [(Int, Int)] -> Grid -> [(Int, Int)] -- recibe el indice acumulativo de fila, el acumulador con las posiciones que va encontrando (que tiene mismo tipo que valor de retorno) y el Nivel (Grid) dado.
+posicionesMetaRecAux f ac [] = ac 
 posicionesMetaRecAux f ac (fila:resto) = posicionesMetaRecAux (f+1) (recorreFila f 0 ac fila) resto
+-- en cada llamada recursiva, aumenta el indicador de fila en 1 para iterar por la siguiente fila; recorre la fila actual columna por columna para identificar todas las columnas con Metas; y se llama con el resto del nivel (`resto`),
+-- utilizando otra func auxiliar de recursion explicita para recorrer la fila actual 
 
-recorreFila :: Int -> Int -> [(Int, Int)] -> [Celda] -> [(Int, Int)]
-recorreFila f c ac [] = ac
-recorreFila f c ac (celda:restoFila)
- | esMeta celda = recorreFila f (c+1) (ac ++ [(f,c)]) restoFila
- | otherwise = recorreFila f (c+1) ac restoFila
+recorreFila :: Int -> Int -> [(Int, Int)] -> Grid -> [(Int, Int)] -- func aux para recorrer fila actual que devuelve todas las coordenadas encontradas añadidas al acumulador de la fila actual, utilizando un indicador de columna para calcular las posiciones
+recorreFila f c ac [] = ac -- caso base: el nivel actual es vació -> retorna el valor del ac actual
+recorreFila f c ac (celda:restoFila) -- caso recursivo: utilizando patrones para verificar si la primera celda de la fila que estamos procesando es Meta
+ | esMeta celda = recorreFila f (c+1) (ac ++ [(f,c)]) restoFila -- esMeta == True -> llamada recursiva aumentando indicador de columna; añadimos al ac la coordenada encontrada; y seguimos la llamada con el resto de la fila
+ | otherwise = recorreFila f (c+1) ac restoFila -- esMeta == False -> iteramos por el resto de la fila descartando la coordenada (f,c) actual
+
+
+-- Función: posicionesEnemigosRec -> igual que posicionesMetaRec, pero para las posiciones e identificadores de los enemigos
+posicionesEnemigosRec :: Grid -> [(Int, Int, Celda)]
+posicionesEnemigosRec [] = []
+posicionesEnemigosRec nivel = posicionesEnemigosRecAux 0 [] nivel
+
+posicionesEnemigosRecAux :: Int -> [(Int, Int, Celda)] -> Grid -> [(Int, Int, Celda)]
+posicionesEnemigosRecAux f ac [] = ac
+posicionesEnemigosRecAux = undefined 
 
