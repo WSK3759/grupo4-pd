@@ -188,7 +188,7 @@ posicionesMetaRecAux f ac (fila:resto) = posicionesMetaRecAux (f+1) (recorreFila
 -- en cada llamada recursiva, aumenta el indicador de fila en 1 para iterar por la siguiente fila; recorre la fila actual columna por columna para identificar todas las columnas con Metas; y se llama con el resto del nivel (`resto`),
 -- utilizando otra func auxiliar de recursion explicita para recorrer la fila actual 
 
-recorreFila :: Int -> Int -> [(Int, Int)] -> Grid -> [(Int, Int)] -- func aux para recorrer fila actual que devuelve todas las coordenadas encontradas añadidas al acumulador de la fila actual, utilizando un indicador de columna para calcular las posiciones
+recorreFila :: Int -> Int -> [(Int, Int)] -> [Celda] -> [(Int, Int)] -- func aux para recorrer fila actual que devuelve todas las coordenadas encontradas añadidas al acumulador de la fila actual, utilizando un indicador de columna para calcular las posiciones
 recorreFila f c ac [] = ac -- caso base: el nivel actual es vació -> retorna el valor del ac actual
 recorreFila f c ac (celda:restoFila) -- caso recursivo: utilizando patrones para verificar si la primera celda de la fila que estamos procesando es Meta
  | esMeta celda = recorreFila f (c+1) (ac ++ [(f,c)]) restoFila -- esMeta == True -> llamada recursiva aumentando indicador de columna; añadimos al ac la coordenada encontrada; y seguimos la llamada con el resto de la fila
@@ -202,5 +202,11 @@ posicionesEnemigosRec nivel = posicionesEnemigosRecAux 0 [] nivel
 
 posicionesEnemigosRecAux :: Int -> [(Int, Int, Celda)] -> Grid -> [(Int, Int, Celda)]
 posicionesEnemigosRecAux f ac [] = ac
-posicionesEnemigosRecAux = undefined 
+posicionesEnemigosRecAux f ac (fila:resto) = posicionesEnemigosRecAux (f+1) (recorreFilaEnem f 0 ac fila) resto
+
+recorreFilaEnem :: Int -> Int -> [(Int, Int, Celda)] -> [Celda] -> [(Int, Int, Celda)]
+recorreFilaEnem f c ac [] = ac
+recorreFilaEnem f c ac (celda:restoFilaEnem)
+ | esEnemigo celda = recorreFilaEnem f (c+1) (ac ++ [(f,c, celda)]) restoFilaEnem
+ | otherwise = recorreFilaEnem f (c+1) ac restoFilaEnem
 
