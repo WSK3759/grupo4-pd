@@ -210,3 +210,47 @@ recorreFilaEnem f c ac (celda:restoFilaEnem)
  | esEnemigo celda = recorreFilaEnem f (c+1) (ac ++ [(f,c, celda)]) restoFilaEnem
  | otherwise = recorreFilaEnem f (c+1) ac restoFilaEnem
 
+-- 2 Generalización por recursión de agruparRachas
+
+-- Función: agruparPorCaracter -> Recorre una fila y 
+-- agrupa en tríos (columna de inicio, longitud, carácter) las rachas de caracteres consecutivos iguales.
+
+agruparPorCaracter :: [Celda] -> [(Int, Int, Celda)]
+agruparPorCaracter "" = [] -- caso base: si la fila esta vacia, devuelve una lista vacia
+agruparPorCaracter (chInicial:resto) = agruparPorCaracterRAux 0 1 chInicial resto 
+-- caso recursivo: llamada a la funcion auxiliar con indice acumulador de columna, longitud y caracter actual al que se le pasa el resto de la fila ademas
+
+agruparPorCaracterRAux :: Int -> Int -> Celda -> [Celda] -> [(Int, Int, Celda)] -- func auxiliar: lleva con un indice
+agruparPorCaracterRAux col lng ch [] = [(col, lng, ch)]
+agruparPorCaracterRAux col lng ch (celda:resto)
+ | celda == ch =  agruparPorCaracterRAux col (lng+1) ch resto
+ | otherwise = (col, lng, ch) : agruparPorCaracterRAux (col+lng) 1 celda resto
+
+
+-- 3 Recursion Numerica: simulacion de movimiento
+
+-- Función: simularCaidaLibre --> Dado un número de pasos, una aceleración (gravedad) 
+-- y un estado inicial (posición, velocidad), calcula recursivamente 
+-- la lista de todos los estados por los que pasa un objeto en caída libre 
+-- con avance discreto
+
+simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)]
+-- simularCaidaLibre 0 a sInicial = [sInicial]
+simularCaidaLibre p a (x, v) = (x,v) : simularCaidaLibreRAux [] p a (x,v)
+
+simularCaidaLibreRAux :: [(Double, Double)] -> Int -> Double -> (Double, Double) -> [(Double, Double)]
+simularCaidaLibreRAux ac 0 a (x, v) = ac
+simularCaidaLibreRAux ac p a (x, v) = simularCaidaLibreRAux (ac ++ [(x + v, v + a)]) (p-1) a (x + v, v + a)
+
+-- (pos anterior + velocidad anterior, velocidad anterior + aceleracion)
+
+-- 4 Recursión sobre dos listas a la vez (0.5 puntos)
+
+-- Función: zipPropio --> 
+    -- Empareja los elementos de dos listas, uno a uno, 
+    -- deteniéndose en cuanto una de las dos se acaba
+
+zipPropio :: [a] -> [b] -> [(a,b)]
+zipPropio [] _ = []
+zipPropio _ [] = []
+zipPropio (x:xs) (y:ys) = (x,y) : zipPropio xs ys
