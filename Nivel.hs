@@ -254,3 +254,29 @@ zipPropio :: [a] -> [b] -> [(a,b)]
 zipPropio [] _ = []
 zipPropio _ [] = []
 zipPropio (x:xs) (y:ys) = (x,y) : zipPropio xs ys
+
+-- 5 Recursión con descarte condicional: preparación de líneas
+
+-- Función: esComentarioOVacia --> Dada una línea (lista de caracteres), devuelve un Bool indicando si dicha linea es vacía (" ") o es un comentario (que empiezan por ';')
+esComentarioOVacia :: String -> Bool
+esComentarioOVacia "" = True
+esComentarioOVacia (x:xs)
+ | x == ';' = True
+ | x == ' ' = esComentarioOVacia xs
+ | otherwise = False
+
+-- Función: prepararLineas --> Dada una lista de líneas de fichero de nivel, recorre la lista limpiando el formato: elimina los espacios vacios al principio y al final y las lineas con comentarios
+prepararLineas :: [String] -> Grid
+prepararLineas = prepararLineasAux []
+
+prepararLineasAux :: Grid -> [String] -> Grid
+prepararLineasAux ac [] = reverse ac
+prepararLineasAux ac (xs:xss)
+ | esComentarioOVacia xs = prepararLineasAux ac xss
+ | otherwise = prepararLineasAux (iteraYPrepara xs : ac) xss
+ where
+    iteraYPrepara :: String -> String
+    iteraYPrepara "" = ""
+    iteraYPrepara (x:xs) 
+     | x /= ' ' = x : iteraYPrepara xs
+     | otherwise = iteraYPrepara xs
