@@ -280,3 +280,33 @@ prepararLineasAux ac (xs:xss)
     iteraYPrepara (x:xs) 
      | x /= ' ' = x : iteraYPrepara xs
      | otherwise = iteraYPrepara xs
+    
+
+-- Bloque 2: Funciones de orden superior
+-- Subtarea 5: mapPropio y filterPropio
+
+-- Función: mapPropio --> dada una funcion y una lista de tipo generico, devuelve la lista de resultados aplicando la funcion a cada elemento, utilizando orden superior
+
+mapPropioR :: (a -> b) -> [a] -> [b] -- Utilizando patrones con recursion no terminal
+mapPropioR _ [] = []
+mapPropioR f (x:xs) = f x : mapPropioR f xs
+
+-- Utilizando funciones orden superior:
+mapPropioOS :: (a -> b) -> [a] -> [b]
+mapPropioOS f = foldr (\x r -> f x : r) []
+
+-- Funcion: filterPropio --> Dado un predicado y una lista de elementos, devuelve la lista de los elementos que cumplen el predicado
+filterPropio :: (a -> Bool) -> [a] -> [a]
+filterPropio p = foldr (\x r -> if p x then x : r else r) []
+
+-- Subtarea 6: foldrPropio y foldlPropio
+
+-- Funcion: foldrPropio --> dado una funcion binaria, un elemento incial y una lista de elementos de distinto tipo, devuelve la combinacion de los elementos de la lista usando la funcion binaria
+foldrPropio :: (a -> b -> b) -> b -> [a] -> b 
+foldrPropio _ e [] = e
+foldrPropio f e (x:xs) = f x (foldrPropio f e xs) -- llamada recursiva con el resto de la lista para combinar de derecha (final de lista) a izquierda (inicio)
+
+-- Función: foldlPropio 
+foldlPropio :: (b -> a -> b) -> b -> [a] -> b
+foldlPropio _ ac []     = ac
+foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
