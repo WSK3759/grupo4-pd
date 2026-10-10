@@ -292,12 +292,17 @@ mapPropioR _ [] = []
 mapPropioR f (x:xs) = f x : mapPropioR f xs
 
 -- Utilizando funciones orden superior:
-mapPropioOS :: (a -> b) -> [a] -> [b]
-mapPropioOS f = foldr (\x r -> f x : r) []
+mapPropio :: (a -> b) -> [a] -> [b]
+mapPropio f = foldr auxMapPropio []
+ where
+    auxMapPropio x r = f x : r
 
 -- Funcion: filterPropio --> Dado un predicado y una lista de elementos, devuelve la lista de los elementos que cumplen el predicado
 filterPropio :: (a -> Bool) -> [a] -> [a]
-filterPropio p = foldr (\x r -> if p x then x : r else r) []
+filterPropio p = foldr auxCond []
+ where
+    auxCond elem ac = if p elem then elem : ac else ac
+
 
 -- Subtarea 6: foldrPropio y foldlPropio
 
@@ -310,3 +315,35 @@ foldrPropio f e (x:xs) = f x (foldrPropio f e xs) -- llamada recursiva con el re
 foldlPropio :: (b -> a -> b) -> b -> [a] -> b
 foldlPropio _ ac []     = ac
 foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
+
+-- Subtarea 7: Aplicación justificada de foldr/foldl
+
+-- Funcion: hayColisionConAlguna --> Dada una cajaColision de un objeto, y una lista de cajasColision
+-- indicar si existe colision con alguna de ellas
+-- Debe implementarse con foldr
+
+-- Utilizo la funcion de la Tarea 1: `solapan`, para comprobar si colisionan en algun lado
+hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
+hayColisionConAlguna cajaInicial = foldr auxCombinadora False
+ where
+    auxCombinadora caja r = solapan cajaInicial caja || r
+-- En esta funcion utilizamos 'foldr' porque nos permite aprovechar la evaluación perezosa (lazy evaluation): 
+-- al combinar las condiciones con el operador (||), en el momento en que 'solapan cajaInicial caja' devuelve True,
+-- se deja de evaluar y se devuelve True inmediatamente sin evaluar el resto de cajas, ya que el operador (||) esta definido de forma perezosa por la izquierda.
+
+-- Función: contarCeldasQueCumplen --> Dados una funcion de la Tarea 1 y un Nivel completo, cuenta cuantas celdas hay que cumplen con la funcion dada
+contarCeldasQueCumplen :: (Celda -> Bool) -> Grid -> Int
+contarCeldasQueCumplen f = foldl contarCeldasFila 0
+ where
+    contarCeldasFila :: Int -> [Celda] -> Int -- suma al acumulador el numero de celdas que cumplen la funcion en la fila actual
+    contarCeldasFila ac fila = ac + contarFila fila
+    -- contarFila: cuenta cuantas celdas cumplen la condicion en una sola fila mediante foldl
+    contarFila = foldl contarCelda 0
+    -- Suma 1 al acumulador si la celda actual cumple f
+    contarCelda ac celda 
+     | f celda = ac + 1
+     | otherwise = ac
+
+-- Justificacion: para contar celdas necesitamos iterar el nivel entero, 
+-- y puesto que tenemos que procesar sumando de forma acumulativa todos los elementos de izquierda a derecha
+-- que cumplan la condicion, foldl es la opcion que nos permite hacer esto (de izq a derecha).
