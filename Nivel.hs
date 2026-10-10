@@ -347,3 +347,47 @@ contarCeldasQueCumplen f = foldl contarCeldasFila 0
 -- Justificacion: para contar celdas necesitamos iterar el nivel entero, 
 -- y puesto que tenemos que procesar sumando de forma acumulativa todos los elementos de izquierda a derecha
 -- que cumplan la condicion, foldl es la opcion que nos permite hacer esto (de izq a derecha).
+
+-- Bonus: Propiedades con QuickCheck
+
+-- prop_mapPropio_equivale_map --> comprueba que la funcion mapPropio es equivalente a map
+prop_mapPropio_equivale_map :: (Num a, Eq a) => [a] -> Bool
+prop_mapPropio_equivale_map xs = mapPropio (^2) xs == map (^2) xs
+-- ghci> quickCheck prop_mapPropio_equivale_map
+-- +++ OK, passed 100 tests.
+
+-- prop_filterPropio_equivale_filter --> comprueba que la funcion filterPropio es equivalente a filter
+prop_filterPropio_equivale_filter :: (Integral a, Eq a) => [a] -> Bool
+prop_filterPropio_equivale_filter xs = filterPropio odd xs == filter odd xs
+-- ghci> quickCheck prop_filterPropio_equivale_filter
+-- +++ OK, passed 100 tests.
+
+-- prop_foldrPropio_equivale_foldr --> comprueba que la funcion foldrPropio es equivalente a foldr
+prop_foldrPropio_equivale_foldr :: [Int] -> Bool
+prop_foldrPropio_equivale_foldr xs = foldrPropio (-) 0 xs == foldr (-) 0 xs
+-- ghci> quickCheck prop_foldrPropio_equivale_foldr
+-- +++ OK, passed 100 tests.
+
+-- prop_foldlPropio_equivale_foldl --> comprueba que la funcion foldlPropio es equivalente a foldl
+prop_foldlPropio_equivale_foldl :: [Int] -> Bool
+prop_foldlPropio_equivale_foldl xs = foldlPropio (*) 0 xs == foldl (*) 0 xs
+-- ghci> quickCheck prop_foldlPropio_equivale_foldl
+-- +++ OK, passed 100 tests.
+
+-- prop_zipPropio_equivale_zip --> comprueba que la funcion zipPropio es equivalente a zip
+prop_zipPropio_equivale_zip :: (Eq a, Eq b) => [a] -> [b] -> Bool
+prop_zipPropio_equivale_zip xs ys = zipPropio xs ys == zip xs ys
+-- ghci> quickCheck prop_zipPropio_equivale_zip
+-- +++ OK, passed 100 tests.
+
+-- prop_simularCaidaLibre_longitud --> comprueba que la longitud del resultado de la funcion simularCaidaLibre es siempre igual al numero de pasos + 1
+prop_simularCaidaLibre_longitud :: Int -> Double -> (Double, Double) -> Property
+prop_simularCaidaLibre_longitud p a (x, v) = p >= 0 ==> length (simularCaidaLibre p a (x,v)) == p + 1
+-- ghci> quickCheck prop_simularCaidaLibre_longitud
+-- +++ OK, passed 100 tests; 102 discarded.
+
+-- prop_hayColisionConAlguna_lista_vacia --> Comprueba que para una lista vacia de CajaColision (obstaculos), el resultado de 'hayColisionConAlguna' es siempre False
+prop_hayColisionConAlguna_lista_vacia :: CajaColision -> [CajaColision] -> Bool
+prop_hayColisionConAlguna_lista_vacia cajaInicial xs = hayColisionConAlguna cajaInicial [] == False
+-- ghci> quickCheck prop_hayColisionConAlguna_lista_vacia
+-- +++ OK, passed 100 tests.
