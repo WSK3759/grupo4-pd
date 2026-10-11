@@ -1,0 +1,14 @@
+*Main> quickCheck prop_mapPropio_equivale_map
++++ OK, passed 100 tests.
+*Main> quickCheck prop_filterPropio_equivale_filter
++++ OK, passed 100 tests.
+*Main> quickCheck prop_foldrPropio_equivale_foldr
++++ OK, passed 100 tests.
+*Main> quickCheck prop_foldlPropio_equivale_foldl
++++ OK, passed 100 tests.
+*Main> quickCheck prop_zipPropio_equivale_zip
++++ OK, passed 100 tests.
+*Main> quickCheck prop_simularCaidaLibre_longitud
++++ OK, passed 100 tests; 98 discarded.
+*Main> quickCheck prop_hayColisionConAlguna_lista_vacia
++++ OK, passed 100 tests.
