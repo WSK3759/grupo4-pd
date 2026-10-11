@@ -1,261 +1,504 @@
-----------------------------------------------------------
--- Tarea 1
--- Lógica pura del motor de niveles y colisiones
--- Programación Declarativa — Curso 2026/2027
-----------------------------------------------------------
 import Test.QuickCheck
-----------------------------------------------------------
--- 1 Vectores 2D
-----------------------------------------------------------
 
--- Definir un tipo sinónimo para un punto/*vector 2D*
+--------------------------------------------------
+-- TIPOS SINÓNIMOS
+--------------------------------------------------
+
 type Vector2D = (Double, Double)
 
+type CajaColision = (Double, Double, Double, Double) -- Posición (x,y), ancho y alto
 
--- Función: sumaVectores
--- Suma componente a componente dos vectores/puntos 2D.
+type Celda = Char
 
-sumaVectores :: Vector2D -> Vector2D -> Vector2D -- recibe dos vectores y devuelve otro
-sumaVectores (x1,y1) (x2,y2) = (x1 + x2, y1 + y2)
+type Grid = [String] -- Un Grid es una lista de filas, donde cada fila es un String
 
 
--- Función: escalarVector
--- Multiplica un vector/punto 2D por un factor escalar.
+--------------------------------------------------
+-- TAREA 1 (MAIN)
+--------------------------------------------------
 
+--------------------------------------------------
+-- 1. VECTORES 2D
+--------------------------------------------------
+
+-- Suma dos vectores 2D componente a componente
+sumaVectores :: Vector2D -> Vector2D -> Vector2D
+sumaVectores v1 v2 =
+    (fst v1 + fst v2, snd v1 + snd v2)
+
+
+-- Multiplica un vector 2D por un factor escalar
 escalarVector :: Double -> Vector2D -> Vector2D
-escalarVector d (x,y) = (d * x, d * y)
+escalarVector x v =
+    (x * fst v, x * snd v)
 
 
--- Función: distancia
 -- Calcula la distancia euclídea entre dos puntos 2D
-
 distancia :: Vector2D -> Vector2D -> Double
-distancia (x1,y1) (x2,y2) = sqrt ((x2-x1)^2 + (y2-y1)^2)
+distancia v1 v2 =
+    sqrt ((fst v1 - fst v2)^2 + (snd v1 - snd v2)^2)
 
 
-----------------------------------------------------------
--- 2 Cajas de colisión
-----------------------------------------------------------
+--------------------------------------------------
+-- 2. CAJAS DE COLISIÓN
+--------------------------------------------------
 
---  Definición correcta del tipo sinónimo para una *caja* delimitadora
-type Caja = (Double, Double, Double, Double)
-
-
--- Función: solapan
--- Indica si dos cajas delimitadoras, alineadas con los ejes, se solapan en algún punto -- (0,0,10,10) (5,5,10,10)
--- Si solo se tocan en el borde, no se consideran solapadas
-
-solapan :: Caja -> Caja -> Bool
-solapan (x1,y1,ancho1,alto1) (x2,y2,ancho2,alto2) = 
+-- Indica si dos cajas de colisión se solapan en ambos ejes
+solapan :: CajaColision -> CajaColision -> Bool
+solapan (x1,y1,ancho1,alto1) (x2,y2,ancho2,alto2) =
     x1 + ancho1 > x2 &&
     x2 + ancho2 > x1 &&
     y1 + alto1 > y2 &&
     y2 + alto2 > y1
 
 
-----------------------------------------------------------
--- 3 Lado de colisión
-----------------------------------------------------------
+--------------------------------------------------
+-- 3. LADO DE COLISIÓN
+--------------------------------------------------
 
--- Dadas dos cajas que ya colisionan, se pide determinar por qué lado es más superficial el
--- solape (ese es el lado por el que efectivamente se produjo el contacto).
+-- Devuelve el lado por el que se produce la colisión según el menor solape
+ladoColision :: CajaColision -> CajaColision -> String
+ladoColision (x1, y1, a1, h1) (x2, y2, a2, h2)
+    | arriba <= abajo
+      && arriba <= izquierda
+      && arriba <= derecha = "Arriba"
 
--- Función: ladoColision
--- Dadas dos cajas que colisionan, devuelve el lado por el que se produce el contacto (el de
--- menor solape) (usar where y guardas)
+    | abajo <= arriba
+      && abajo <= izquierda
+      && abajo <= derecha = "Abajo"
 
-ladoColision :: Caja -> Caja -> String
-ladoColision (x1,y1,ancho1,alto1) (x2,y2,ancho2,alto2)
-    | solapeArriba <= solapeAbajo 
-    && solapeArriba <= solapeIzquierda 
-    && solapeArriba <= solapeDerecha = "Arriba"
-    
-    | solapeAbajo <= solapeArriba && 
-    solapeAbajo <= solapeIzquierda && 
-    solapeAbajo <= solapeDerecha = "Abajo"
-    
-    | solapeIzquierda <= solapeAbajo 
-    && solapeIzquierda <= solapeArriba 
-    && solapeIzquierda <= solapeDerecha = "Izquierda"
-    
+    | izquierda <= arriba
+      && izquierda <= abajo
+      && izquierda <= derecha = "Izquierda"
+
     | otherwise = "Derecha"
 
     where
-        solapeArriba = y2 + alto2 - y1 -- Solape de la caja 1 entrando por arriba
-        solapeAbajo = y1 + alto1 - y2
-        solapeIzquierda = x1 + ancho1 - x2
-        solapeDerecha = x2 + ancho2 - x1
+        arriba    = (y2 + h2) - y1
+        abajo     = (y1 + h1) - y2
+        izquierda = (x1 + a1) - x2
+        derecha   = (x2 + a2) - x1
 
 
-----------------------------------------------------------
--- 4 Utilidades de listas y cadenas
-----------------------------------------------------------
+--------------------------------------------------
+-- 4. UTILIDADES DE LISTAS Y CADENAS
+--------------------------------------------------
 
--- Función: splitOn
--- Divide una cadena en trozos cada vez que aparece un carácter separador dado.
--- vía pattern matching x:xs
-
--- si aparece el separador... empiezo un nuevo trozo, sino, añado el carácter al trozo actual
--- un sumaLista, pero construyendo trozos en vez de sumando números
+-- Divide una cadena en trozos utilizando un carácter como separador
 splitOn :: Char -> String -> [String]
-splitOn separador [] = [""] -- caso base
-splitOn separador (x:xs)
-    | x == separador = "" : splitOn separador xs   -- si x es el separador, creo un nuevo trozo vacío y sigo con el resto
-    | otherwise = (x:y) : ys
+splitOn _ [] = [""]
+splitOn c (x:xs)
+    | c == x    = "" : lista
+    | otherwise = (x : head lista) : tail lista
     where
-        (y:ys) = splitOn separador xs
+        lista = splitOn c xs
 
--- Función: trim
--- Elimina los espacios en blanco (espacios, tabuladores, saltos de línea) al principio y al final
--- de una cadena.
 
+-- Elimina espacios, tabuladores y saltos de línea al principio y al final
 trim :: String -> String
-trim [] = [] -- caso base
-trim (x:xs)
-    | (x == ' ' || x == '\t' || x == '\n') = trim xs
-    | y == ' ' || y == '\t' || y == '\n' = reverse (trim ys) -- (where) ... y hacemos la misma operación
-    | otherwise = x:xs -- por si no hay espacios (las dos primeras guardas False)
+trim xs =
+    reverse (dropWhile esEspacio (reverse (dropWhile esEspacio xs)))
     where
-        (y:ys) = reverse (x:xs) -- le damos la vuelta al String original para eliminar los espacios en blanco del final
+        esEspacio :: Char -> Bool
+        esEspacio c = c `elem` [' ', '\t', '\n']
 
 
--- Función: contarSiCumple
 -- Cuenta cuántos elementos de una lista cumplen una condición dada
-
--- resuelta obligatoriamente con lista por comprensión, no con foldr/map
-
 contarSiCumple :: (a -> Bool) -> [a] -> Int
-contarSiCumple condicion xs = length [x | x <- xs, condicion x]
+contarSiCumple p xs =
+    length [x | x <- xs, p x]
 
 
--- Función: list2Vector2
--- Convierte una lista de dos (o más) números en un vector/punto 2D; lanza un error si la lista
--- no tiene al menos dos elementos.
-
---  list2Vector2, con pattern matching en los casos [], [x], (x:y:_) y uso de error en los
--- casos inválidos; el tipo del resultado debe coincidir con el definido en la Subtarea 1
-
+-- Convierte los dos primeros elementos de una lista en un vector 2D.
 list2Vector2 :: [Double] -> Vector2D
-list2Vector2 [] = error "Lista vacia no posible convertir en Vector2" -- no tiene al menos dos elementos
-list2Vector2 [x] = error "La lista no tiene al menos dos elementos"
-list2Vector2 (x:y:_) = (x,y)
+list2Vector2 [] =
+    error "head : Lista vacia no posible convertir en Vector2"
+list2Vector2 [x] =
+    error "head : Falta un elemento en la lista para convertir en Vector2"
+list2Vector2 (x:y:_) =
+    (x,y)
 
 
-----------------------------------------------------------
--- 5 Parseo del nivel
-----------------------------------------------------------
+--------------------------------------------------
+-- 5. PARSEO DEL NIVEL
+--------------------------------------------------
 
-type Celda = Char
-type Nivel = [String]
+-- Convierte una lista de filas de texto en un Grid
+parsearNivel :: [String] -> Grid
+parsearNivel s = s
 
--- Función: parsearNivel
--- Convierte la lista de líneas de texto leídas de un fichero de nivel en la estructura de datos
--- que representa el nivel completo
 
-parsearNivel :: [String] -> Nivel
-parsearNivel lineas = lineas
-
--- usar pattern matching directo:
-
--- Función: esSolido
--- Indica si una celda es una plataforma sólida.
-
+-- Indica si una celda representa una plataforma sólida
 esSolido :: Celda -> Bool
 esSolido '#' = True
-esSolido _ = False
+esSolido _   = False
 
--- Función: esMeta
--- Indica si una celda es la meta del nivel.
 
+-- Indica si una celda representa la meta del nivel
 esMeta :: Celda -> Bool
 esMeta 'M' = True
-esMeta _ = False
+esMeta _   = False
 
--- Función: esVacio
--- Indica si una celda está vacía (no hay nada en ella).
 
+-- Indica si una celda está vacía
 esVacio :: Celda -> Bool
 esVacio '.' = True
-esVacio _ = False
+esVacio _   = False
 
--- Función: esEnemigo
--- Indica si una celda marca el punto de inicio de un enemigo (cualquier carácter que no sea
--- sólido, meta ni vacío).
 
+-- Indica si una celda representa el inicio de un enemigo
 esEnemigo :: Celda -> Bool
-esEnemigo celda = not (esSolido celda || esMeta celda || esVacio celda)
+esEnemigo celda =
+    not (esSolido celda || esMeta celda || esVacio celda)
 
--- Función: posicionesMeta
--- Dado el nivel completo, devuelve la lista de posiciones (fila, columna) en las que aparece la
--- meta. fila -> i columna -> j
 
-posicionesMeta :: Nivel -> [(Int, Int)] -- Nivel -> lista de (fila, columna)
+-- Devuelve las posiciones (fila,columna) en las que aparece la meta
+posicionesMeta :: Grid -> [(Int, Int)]
 posicionesMeta nivel =
-    [(i,j) |
-        (i,fila) <- zip [0..] nivel,
-        (j,celda) <- zip [0..] fila,
-        esMeta celda -- filtra solo las 'M'
+    [ (f,c)
+    | (f,fila) <- zip [0..] nivel
+    , (c,celda) <- zip [0..] fila
+    , esMeta celda
     ]
 
--- Función: posicionesEnemigos
--- Dado el nivel completo, devuelve la lista de posiciones y el identificador de cada enemigo
--- (fila, columna, identificador).
--- (1,2,"X") "X" es String no char
 
-posicionesEnemigos :: Nivel -> [(Int, Int, String)]
+-- Devuelve la posición y el identificador de cada enemigo del nivel
+posicionesEnemigos :: Grid -> [(Int, Int, Char)]
 posicionesEnemigos nivel =
-    [(i,j,[celda]) |
-        (i,fila) <- zip [0..] nivel,
-        (j,celda) <- zip [0..] fila,
-        esEnemigo celda
+    [ (indiceLista, indiceString, caracter)
+    | (indiceLista,stringLista) <- zip [0..] nivel
+    , (indiceString,caracter) <- zip [0..] stringLista
+    , esEnemigo caracter
     ]
 
--- Función: agruparRachas
--- Recorre una fila del nivel y agrupa las columnas ’#’ consecutivas en pares (columna de inicio,
--- longitud de la racha)
--- > agruparRachas "..###.##"
--- [(2,3),(6,2)]
 
+-- Agrupa las rachas de celdas sólidas indicando posición inicial y longitud
 agruparRachas :: String -> [(Int, Int)]
-agruparRachas fila = agrupar fila 0
+agruparRachas fila =
+    aux 0 fila
     where
-        agrupar :: String -> Int -> [(Int, Int)]
+        aux :: Int -> String -> [(Int, Int)]
+        aux _ "" = []
 
-        agrupar [] _ = []
+        aux indice xs
+            | not (esSolido (head xs)) =
+                let (_,resto) = span (not . esSolido) xs
+                    saltados = length xs - length resto
+                in aux (indice + saltados) resto
 
-        agrupar (x:xs) indice
-            | esSolido x = (indice, length consecutivos) : agrupar resto (indice + length consecutivos)
-            | otherwise = agrupar xs (indice + 1)
-            where
-                (consecutivos, resto) = span esSolido (x:xs)
+            | otherwise =
+                let (solidos,resto) = span esSolido xs
+                    longitud = length solidos
+                in (indice,longitud)
+                   : aux (indice + longitud) resto
 
--- Bonus: Propiedades con QuickCheck
 
+--------------------------------------------------
+-- 6. BONUS: PROPIEDADES CON QUICKCHECK
+--------------------------------------------------
+
+-- Comprueba que la suma de vectores es conmutativa
 prop_suma_conmutativa :: Vector2D -> Vector2D -> Bool
-prop_suma_conmutativa a b = sumaVectores a b == sumaVectores b a
+prop_suma_conmutativa a b =
+    sumaVectores a b == sumaVectores b a
 
+-- +++ OK, passed 100 tests.
+
+
+-- Comprueba la propiedad asociativa de la suma de vectores
 prop_suma_asociativa :: Vector2D -> Vector2D -> Vector2D -> Bool
-prop_suma_asociativa a b c = sumaVectores (sumaVectores a b) c == sumaVectores a (sumaVectores b c)
+prop_suma_asociativa a b c =
+    sumaVectores (sumaVectores a b) c
+    ==
+    sumaVectores a (sumaVectores b c)
 
-prop_escalar_neutro ::  Vector2D -> Bool
-prop_escalar_neutro vector = escalarVector 1 vector == vector
+-- Failed! Falsified (after 9 tests and 12 shrinks):
+-- (0.6,0.0)
+-- (0.3,0.0)
+-- (4.0,0.0)
+-- Falla por pequeños errores acumulados al redondear.
 
+
+-- Comprueba que multiplicar un vector por 1 no lo modifica
+prop_escalar_neutro :: Vector2D -> Bool
+prop_escalar_neutro v =
+    escalarVector 1 v == v
+
+-- +++ OK, passed 100 tests.
+
+
+-- Comprueba que la distancia entre dos puntos nunca es negativa
 prop_distancia_no_negativa :: Vector2D -> Vector2D -> Bool
-prop_distancia_no_negativa a b = distancia a b >= 0
+prop_distancia_no_negativa a b =
+    distancia a b >= 0
 
+-- +++ OK, passed 100 tests.
+
+
+-- Comprueba que la distancia entre dos puntos es simétrica
 prop_distancia_simetrica :: Vector2D -> Vector2D -> Bool
-prop_distancia_simetrica a b = distancia a b == distancia b a
+prop_distancia_simetrica a b =
+    distancia a b == distancia b a
 
-prop_solapan_simetrica :: Caja -> Caja -> Bool
-prop_solapan_simetrica a b = solapan a b == solapan b a
+-- +++ OK, passed 100 tests.
 
+
+-- Comprueba que el solape entre dos cajas es simétrico
+prop_solapan_simetrica :: CajaColision -> CajaColision -> Bool
+prop_solapan_simetrica a b =
+    solapan a b == solapan b a
+
+-- +++ OK, passed 100 tests.
+
+
+-- Comprueba que aplicar trim dos veces equivale a aplicarlo una vez
 prop_trim_idempotente :: String -> Bool
-prop_trim_idempotente s = trim (trim s) == trim s
+prop_trim_idempotente s =
+    trim (trim s) == trim s
 
+-- +++ OK, passed 100 tests.
+
+
+-- Comprueba que sin separador splitOn devuelve únicamente la cadena original
 prop_splitOn_sin_separador :: Char -> String -> Property
-prop_splitOn_sin_separador separador xs =
-    separador `notElem` xs ==> splitOn separador xs == [xs]
+prop_splitOn_sin_separador c s =
+    notElem c s ==> splitOn c s == [s]
 
-prop_contarSiCumple_acotado :: (Int -> Bool) -> [Int] -> Bool
-prop_contarSiCumple_acotado condicion xs =
-    contarSiCumple condicion xs <= length xs
+-- +++ OK, passed 100 tests; 14 discarded.
+
+
+-- Comprueba que contarSiCumple nunca supera la longitud de la lista
+prop_contarSiCumple_acotado :: [Int] -> Bool
+prop_contarSiCumple_acotado xs =
+    contarSiCumple even xs <= length xs
+
+
+--------------------------------------------------
+-- TAREA 2
+--------------------------------------------------
+
+-- **********************************
+-- BLOQUE 1
+-- **********************************
+
+--------------------------------------------------
+-- 1. Reimplementación recursiva de las consultas del nivel
+--------------------------------------------------
+
+-- Devuelve recursivamente las posiciones (fila,columna) en las que aparece la meta
+posicionesMetaRec :: Grid -> [(Int, Int)]
+posicionesMetaRec nivel = filas 0 nivel -- recorrer nivel empezando por fila 0 "..M"
+  where
+    filas :: Int -> Grid -> [(Int, Int)]
+    filas _ [] = []
+    filas f (fila:resto) =
+        columnas f 0 fila ++ filas (f+1) resto
+
+    columnas :: Int -> Int -> String -> [(Int, Int)]
+    columnas _ _ [] = []
+    columnas f c (x:xs) -- fila,columna,caracterAct,restoCar
+      | esMeta x = (f,c) : columnas f (c+1) xs -- guardamos posición y seguimos buscando
+      | otherwise = columnas f (c+1) xs
+
+
+-- Devuelve recursivamente las posiciones y el identificador de los enemigos.
+posicionesEnemigosRec :: Grid -> [(Int, Int, String)]
+posicionesEnemigosRec nivel = filas 0 nivel
+  where
+    filas :: Int -> Grid -> [(Int, Int, String)]
+    filas _ [] = []
+    filas f (fila:resto) =
+        columnas f 0 fila ++ filas (f+1) resto
+
+    columnas :: Int -> Int -> String -> [(Int, Int, String)]
+    columnas _ _ [] = []
+    columnas f c (x:xs)
+      | esEnemigo x = (f,c,[x]) : columnas f (c+1) xs -- String = [Char]
+      | otherwise = columnas f (c+1) xs
+
+--------------------------------------------------
+-- 2 Generalización por recursión de agruparRachas
+--------------------------------------------------
+
+-- Agrupa las rachas de caracteres iguales indicando inicio, longitud y carácter.
+agruparPorCaracter :: String -> [(Int, Int, Char)]
+agruparPorCaracter fila = agrupar 0 fila
+  where
+    agrupar :: Int -> String -> [(Int, Int, Char)]
+    agrupar _ [] = [] -- CB
+    agrupar indice (caracter:restoFila) = -- indice: posición donde empieza la racha; caracter: primer caracter; restoFila: resto de la cadena
+        (indice, longitud, caracter) : agrupar (indice + longitud) resto
+      where
+        (longitud, resto) = medirRacha 1 caracter restoFila
+
+    medirRacha :: Int -> Char -> String -> (Int, String)
+    medirRacha cantidad _ [] = (cantidad, [])
+    medirRacha cantidad caracter (siguiente:resto)
+      | caracter == siguiente =
+          medirRacha (cantidad + 1) caracter resto
+      | otherwise =
+          (cantidad, siguiente:resto)
+
+--------------------------------------------------
+-- 3. Recursión numérica: simulación de movimiento
+--------------------------------------------------
+
+-- Auxiliar que pide el enunciado: calcula un solo paso de la caída libre.
+soloUnPaso :: Double -> (Double, Double) -> (Double, Double)
+soloUnPaso gravedad (posicion, velocidad) =
+    (posicion + velocidad, velocidad + gravedad) -- pm
+
+-- Simula la caída libre guardando el estado inicial y los siguientes estados.
+simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)]
+simularCaidaLibre 0 _ estado = [estado] -- Si quedan 0 pasos, ya no calculamos nada más pero devolvemos el estado
+simularCaidaLibre n gravedad estado =
+    estado : -- guarda el estado actual en la lista
+    simularCaidaLibre (n-1) -- vuelve a llamar a la misma función, pero con un paso menos
+    gravedad -- la gravedad no cambia durante la simulación
+    (soloUnPaso gravedad estado) -- calcula nuevo estado
+
+--------------------------------------------------
+-- 4. Recursión sobre dos listas a la vez
+--------------------------------------------------
+
+-- Empareja los elementos de dos listas hasta que una de las dos se acaba.
+zipPropio :: [a] -> [b] -> [(a,b)]
+zipPropio [] _ = [] -- CB: si la primera lista se acaba, terminamos
+zipPropio _ [] = [] -- CB: si la segunda lista se acaba, terminamo
+zipPropio (x:xs) (y:ys) =
+    (x,y) : zipPropio xs ys
+
+--------------------------------------------------
+-- 5. Recursión con descarte condicional: preparación de líneas
+--------------------------------------------------
+
+-- Comprueba si una línea está vacía o es un comentario.
+esComentarioOVacia :: String -> Bool
+esComentarioOVacia [] = True
+esComentarioOVacia (';':_) = True -- si empieza por ; devuelve True
+esComentarioOVacia _ = False
+
+-- Limpia las líneas y elimina las vacías o los comentarios.
+prepararLineas :: [String] -> [String]
+prepararLineas [] = []   -- CB: no quedan líneas
+prepararLineas (linea:resto)
+    | esComentarioOVacia lineaLimpia = prepararLineas resto -- si es comentario o vacía, la ignoramos y seguimos con el resto
+    | otherwise = lineaLimpia : prepararLineas resto -- si no es comentario ni vacía, la guardamos
+  where
+    lineaLimpia = trim linea -- limpia la línea de espacios
+
+-- **********************************
+-- BLOQUE 2
+-- **********************************
+
+--------------------------------------------------
+-- 5. mapPropio y filterPropio
+--------------------------------------------------
+
+-- Aplica una función a todos los elementos de una lista.
+mapPropio :: (a -> b) -> [a] -> [b]
+mapPropio _ [] = []   -- CB: no quedan elementos
+mapPropio funcion (x:xs) =
+    funcion x : mapPropio funcion xs
+
+-- Se queda solo con los elementos que cumplen una condición.
+filterPropio :: (a -> Bool) -> [a] -> [a]
+filterPropio _ [] = []   -- CB: no quedan elementos
+filterPropio condicion (x:xs)
+    | condicion x = x : filterPropio condicion xs
+    | otherwise = filterPropio condicion xs -- si no cumple la condición no guardamos el elemento x
+
+--------------------------------------------------
+-- 6. foldrPropio y foldlPropio
+--------------------------------------------------
+
+-- Combina los elementos de una lista de derecha a izquierda.
+foldrPropio :: (a -> b -> b) -> b -> [a] -> b
+foldrPropio _ valorInicial [] = valorInicial   -- CB: no quedan elementos
+foldrPropio funcion valorInicial (x:xs) =
+    funcion x (foldrPropio funcion valorInicial xs)
+
+-- Combina los elementos de una lista de izquierda a derecha usando un acumulador.
+foldlPropio :: (b -> a -> b) -> b -> [a] -> b
+foldlPropio _ acumulador [] = acumulador   -- CB: no quedan elementos
+foldlPropio funcion acumulador (x:xs) = -- Va guardando en un acumulador el resultado y sigue con el resto de la lista.
+    foldlPropio funcion
+    (funcion acumulador x) -- (+) 0 1 -> 0+1 (nuevo acumulador)
+    xs
+
+
+--------------------------------------------------
+-- 7. Aplicación justificada de foldr y foldl
+--------------------------------------------------
+
+-- Comprueba si una caja colisiona con alguna de una lista de cajas.
+-- Usamos foldr porque (||) puede dejar de evaluar cuando encuentra True,
+-- por lo que no necesita recorrer necesariamente toda la lista.
+hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
+hayColisionConAlguna caja obstaculos =
+    foldr comprobar False obstaculos -- si no hay ninguna caja el resultado es False
+  where
+    comprobar :: CajaColision -> Bool -> Bool
+    comprobar obstaculo resultado =
+        solapan caja obstaculo || resultado  -- busca si hay al menos un True
+
+-- Cuenta cuántas celdas del nivel cumplen una condición.
+-- Usamos foldl porque vamos acumulando una cantidad numérica,
+-- sin necesitar conservar la estructura ni hacer cortocircuito.
+contarCeldasQueCumplen :: (Celda -> Bool) -> Grid -> Int
+contarCeldasQueCumplen condicion nivel =
+    foldl sumarFila 0 nivel -- empiezo contando en cero y voy sumando las celdas válidas
+  where
+    sumarFila :: Int -> String -> Int
+    sumarFila acumulador fila =
+        acumulador + contarFila fila
+
+    contarFila :: String -> Int
+    contarFila fila =
+        foldl contarCelda 0 fila
+
+    contarCelda :: Int -> Celda -> Int
+    contarCelda acumulador celda
+      | condicion celda = acumulador + 1
+      | otherwise = acumulador
+
+
+--------------------------------------------------
+-- BONUS: Propiedades con QuickCheck
+--------------------------------------------------
+
+-- Comprueba que mapPropio da el mismo resultado que map.
+prop_mapPropio_equivale_map :: [Int] -> Bool
+prop_mapPropio_equivale_map xs =
+    mapPropio (*2) xs == map (*2) xs
+
+-- Comprueba que filterPropio da el mismo resultado que filter.
+prop_filterPropio_equivale_filter :: [Int] -> Bool
+prop_filterPropio_equivale_filter xs =
+    filterPropio even xs == filter even xs
+
+-- Comprueba que foldrPropio da el mismo resultado que foldr.
+prop_foldrPropio_equivale_foldr :: [Int] -> Bool
+prop_foldrPropio_equivale_foldr xs =
+    foldrPropio (+) 0 xs == foldr (+) 0 xs
+
+-- Comprueba que foldlPropio da el mismo resultado que foldl.
+prop_foldlPropio_equivale_foldl :: [Int] -> Bool
+prop_foldlPropio_equivale_foldl xs =
+    foldlPropio (+) 0 xs == foldl (+) 0 xs
+
+-- Comprueba que zipPropio da el mismo resultado que zip.
+prop_zipPropio_equivale_zip :: [Int] -> String -> Bool
+prop_zipPropio_equivale_zip xs ys =
+    zipPropio xs ys == zip xs ys
+
+-- Comprueba que con n pasos se obtienen n+1 estados.
+prop_simularCaidaLibre_longitud :: Int -> Double -> Double -> Double -> Property
+prop_simularCaidaLibre_longitud n gravedad posicion velocidad =
+    n >= 0 ==>
+        length (simularCaidaLibre n gravedad (posicion, velocidad)) == n + 1
+
+-- Comprueba que no hay colisión si la lista de obstáculos está vacía.
+prop_hayColisionConAlguna_lista_vacia :: CajaColision -> Bool
+prop_hayColisionConAlguna_lista_vacia caja =
+    hayColisionConAlguna caja [] == False
