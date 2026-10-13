@@ -167,3 +167,240 @@ prop_splitOn_sin_separador c s = notElem c s ==> splitOn c s == [s]
 -- El resultado de contarSiCumple nunca es mayor que la longitud de la lista
 prop_contarSiCumple_acotado :: [Int] -> Bool
 prop_contarSiCumple_acotado xs = contarSiCumple even xs <= length xs
+
+-- * / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / /
+
+-- TAREA 2
+
+-- BLOQUE 1 - RECURSION
+-- 1 Reimplementación recursiva de las consultas del nivel 
+
+-- Funcion: posicionesMetaRec
+-- Dado el nivel completo, devuelve la lista de posiciones (fila, columna) en las que aparece la meta, recorriendo de forma recursiva las filas y las columnas, acumulando indice en cada llamada recursiva
+-- IMPLEMENTACION: Miriam/Enrique
+
+posicionesMetaRec :: Grid -> [(Int, Int)]
+posicionesMetaRec nivel = filas 0 nivel -- recorrer nivel empezando por fila 0 "..M"
+  where
+    filas :: Int -> Grid -> [(Int, Int)]
+    filas _ [] = []
+    filas f (fila:resto) =
+        columnas f 0 fila ++ filas (f+1) resto
+
+    columnas :: Int -> Int -> String -> [(Int, Int)]
+    columnas _ _ [] = []
+    columnas f c (x:xs) -- fila,columna,caracterAct,restoCar
+      | esMeta x = (f,c) : columnas f (c+1) xs -- guardamos posición y seguimos buscando
+      | otherwise = columnas f (c+1) xs
+
+
+-- Función: posicionesEnemigosRec -> igual que posicionesMetaRec, pero para las posiciones e identificadores de los enemigos
+-- IMPLEMENTACION: Enrique
+
+posicionesEnemigosRec :: Grid -> [(Int, Int, Char)] -- Devuelve la lista de posiciones e identificadores (fila, columna, carácter) de los enemigos mediante recursión
+posicionesEnemigosRec nivel = auxFilas 0 nivel
+  where
+    auxFilas :: Int -> Grid -> [(Int, Int, Char)]
+    auxFilas indiceFila [] = []
+    auxFilas indiceFila (fila:filas) = 
+        auxColumnas indiceFila 0 fila ++ auxFilas (indiceFila + 1) filas
+
+    auxColumnas :: Int -> Int -> String -> [(Int, Int, Char)]
+    auxColumnas _ _ [] = []
+    auxColumnas f c (caracter:xs) 
+        | esEnemigo caracter = (f, c, caracter) : auxColumnas f (c + 1) xs
+        | otherwise = auxColumnas f (c + 1) xs
+
+-- 2 Generalización por recursión de agruparRachas
+
+-- Función: agruparPorCaracter -> Recorre una fila y 
+-- agrupa en tríos (columna de inicio, longitud, carácter) las rachas de caracteres consecutivos iguales.
+-- IMPLEMENTACION: Jesús
+
+agruparPorCaracter :: [Celda] -> [(Int, Int, Celda)]
+agruparPorCaracter "" = [] -- caso base: si la fila esta vacia, devuelve una lista vacia
+agruparPorCaracter (chInicial:resto) = agruparPorCaracterRAux 0 1 chInicial resto 
+-- caso recursivo: llamada a la funcion auxiliar con indice acumulador de columna, longitud y caracter actual al que se le pasa el resto de la fila ademas
+
+agruparPorCaracterRAux :: Int -> Int -> Celda -> [Celda] -> [(Int, Int, Celda)] -- func auxiliar: lleva con un indice
+agruparPorCaracterRAux col lng ch [] = [(col, lng, ch)]
+agruparPorCaracterRAux col lng ch (celda:resto)
+ | celda == ch =  agruparPorCaracterRAux col (lng+1) ch resto
+ | otherwise = (col, lng, ch) : agruparPorCaracterRAux (col+lng) 1 celda resto
+
+
+-- 3 Recursion Numerica: simulacion de movimiento
+
+-- Función: simularCaidaLibre --> Dado un número de pasos, una aceleración (gravedad) 
+-- y un estado inicial (posición, velocidad), calcula recursivamente 
+-- la lista de todos los estados por los que pasa un objeto en caída libre 
+-- con avance discreto
+-- IMPLEMENTACION: Miriam
+
+-- Auxiliar que pide el enunciado: calcula un solo paso de la caída libre.
+soloUnPaso :: Double -> (Double, Double) -> (Double, Double)
+soloUnPaso gravedad (posicion, velocidad) =
+    (posicion + velocidad, velocidad + gravedad) -- pm
+
+-- Simula la caída libre guardando el estado inicial y los siguientes estados.
+simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)]
+simularCaidaLibre 0 _ estado = [estado] -- Si quedan 0 pasos, ya no calculamos nada más pero devolvemos el estado
+simularCaidaLibre n gravedad estado =
+    estado : -- guarda el estado actual en la lista
+    simularCaidaLibre (n-1) -- vuelve a llamar a la misma función, pero con un paso menos
+    gravedad -- la gravedad no cambia durante la simulación
+    (soloUnPaso gravedad estado) -- calcula nuevo estado
+
+
+-- 4 Recursión sobre dos listas a la vez (0.5 puntos)
+
+-- Función: zipPropio --> 
+    -- Empareja los elementos de dos listas, uno a uno, 
+    -- deteniéndose en cuanto una de las dos se acaba
+-- IMPLEMENTACION: Enrique
+
+zipPropio :: [a] -> [b] -> [(a, b)] -- Empareja los elementos de dos listas uno a uno deteniéndose cuando se acaba alguna.
+zipPropio [] _ = []
+zipPropio _ [] = []
+zipPropio (x:xs) (y:ys) = (x, y) : zipPropio xs ys
+
+-- 5 Recursión con descarte condicional: preparación de líneas
+
+-- Función: esComentarioOVacia --> Dada una línea (lista de caracteres), devuelve un Bool indicando si dicha linea es vacía (" ") o es un comentario (que empiezan por ';')
+-- IMPLEMENTACION: Gonzalo
+-- Determinar si una línea es un comentario o está vacía
+esComentarioOVacia :: String -> Bool
+esComentarioOVacia linea 
+    | trim linea == ""           = True
+    | head (trim linea)  == ';'  = True
+    | otherwise                  = False
+
+-- Función: prepararLineas --> Dada una lista de líneas de fichero de nivel, recorre la lista limpiando el formato: elimina los espacios vacios al principio y al final y las lineas con comentarios
+-- IMPLEMENTACION: Gonzalo
+--Aplicar la función anterior a un conjunto de líneas
+prepararLineas :: [String] -> [String]
+prepararLineas [] = []
+prepararLineas (x:xs)
+    | esComentarioOVacia x == True = prepararLineas xs
+    | otherwise                    =  trim x : prepararLineas xs
+
+
+-- Bloque 2: Funciones de orden superior
+-- Subtarea 5: mapPropio y filterPropio
+
+-- Función: mapPropio --> dada una funcion y una lista de tipo generico, devuelve la lista de resultados aplicando la funcion a cada elemento, utilizando orden superior
+-- IMPLEMENTACION: Jesús
+mapPropioR :: (a -> b) -> [a] -> [b] -- Utilizando patrones con recursion no terminal
+mapPropioR _ [] = []
+mapPropioR f (x:xs) = f x : mapPropioR f xs
+
+-- Utilizando funciones orden superior:
+mapPropio :: (a -> b) -> [a] -> [b]
+mapPropio f = foldr auxMapPropio []
+ where
+    auxMapPropio x r = f x : r
+
+-- Funcion: filterPropio --> Dado un predicado y una lista de elementos, devuelve la lista de los elementos que cumplen el predicado
+-- IMPLEMENTACION: Enrique/Miriam/Gonzalo
+filterPropio :: (a -> Bool) -> [a] -> [a]
+filterPropio _ [] = []
+filterPropio cond (x:xs)
+    | cond x    = x : filterPropio cond xs
+    | otherwise = filterPropio cond xs
+
+
+-- Subtarea 6: foldrPropio y foldlPropio
+-- IMPLEMENTACION: Jesús/Miriam/Enrique/Gonzalo
+-- Funcion: foldrPropio --> dado una funcion binaria, un elemento incial y una lista de elementos de distinto tipo, devuelve la combinacion de los elementos de la lista usando la funcion binaria
+foldrPropio :: (a -> b -> b) -> b -> [a] -> b 
+foldrPropio _ e [] = e
+foldrPropio f e (x:xs) = f x (foldrPropio f e xs) -- llamada recursiva con el resto de la lista para combinar de derecha (final de lista) a izquierda (inicio)
+
+-- Función: foldlPropio 
+foldlPropio :: (b -> a -> b) -> b -> [a] -> b
+foldlPropio _ ac []     = ac
+foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
+
+-- Subtarea 7: Aplicación justificada de foldr/foldl
+
+-- Funcion: hayColisionConAlguna --> Dada una cajaColision de un objeto, y una lista de cajasColision
+-- indicar si existe colision con alguna de ellas
+-- Debe implementarse con foldr
+-- IMPLEMENTACION: Jesús/Gonzalo
+-- Utilizo la funcion de la Tarea 1: `solapan`, para comprobar si colisionan en algun lado
+hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
+hayColisionConAlguna cajaInicial = foldr auxCombinadora False
+ where
+    auxCombinadora caja r = solapan cajaInicial caja || r
+
+-- En esta funcion utilizamos 'foldr' porque nos permite aprovechar la evaluación perezosa (lazy evaluation): 
+-- al combinar las condiciones con el operador (||), en el momento en que 'solapan cajaInicial caja' devuelve True,
+-- se deja de evaluar y se devuelve True inmediatamente sin evaluar el resto de cajas, ya que el operador (||) esta definido de forma perezosa por la izquierda.
+
+
+-- Función: contarCeldasQueCumplen --> Dados una funcion de la Tarea 1 y un Nivel completo, cuenta cuantas celdas hay que cumplen con la funcion dada
+-- IMPLEMENTACION: Miriam
+-- Cuenta cuántas celdas del nivel cumplen una condición.
+-- Usamos foldl porque vamos acumulando una cantidad numérica,
+-- sin necesitar conservar la estructura ni hacer cortocircuito.
+contarCeldasQueCumplen :: (Celda -> Bool) -> Grid -> Int
+contarCeldasQueCumplen condicion nivel =
+    foldl sumarFila 0 nivel -- empiezo contando en cero y voy sumando las celdas válidas
+  where
+    sumarFila :: Int -> String -> Int
+    sumarFila acumulador fila =
+        acumulador + contarFila fila
+
+    contarFila :: String -> Int
+    contarFila fila =
+        foldl contarCelda 0 fila
+
+    contarCelda :: Int -> Celda -> Int
+    contarCelda acumulador celda
+      | condicion celda = acumulador + 1
+      | otherwise = acumulador
+
+-- Bonus: Propiedades con QuickCheck
+-- IMPLEMENTACION: Jesús
+
+-- prop_mapPropio_equivale_map --> comprueba que la funcion mapPropio es equivalente a map
+prop_mapPropio_equivale_map :: (Num a, Eq a) => [a] -> Bool
+prop_mapPropio_equivale_map xs = mapPropio (^2) xs == map (^2) xs
+-- ghci> quickCheck prop_mapPropio_equivale_map
+-- +++ OK, passed 100 tests.
+
+-- prop_filterPropio_equivale_filter --> comprueba que la funcion filterPropio es equivalente a filter
+prop_filterPropio_equivale_filter :: (Integral a, Eq a) => [a] -> Bool
+prop_filterPropio_equivale_filter xs = filterPropio odd xs == filter odd xs
+-- ghci> quickCheck prop_filterPropio_equivale_filter
+-- +++ OK, passed 100 tests.
+
+-- prop_foldrPropio_equivale_foldr --> comprueba que la funcion foldrPropio es equivalente a foldr
+prop_foldrPropio_equivale_foldr :: [Int] -> Bool
+prop_foldrPropio_equivale_foldr xs = foldrPropio (-) 0 xs == foldr (-) 0 xs
+-- ghci> quickCheck prop_foldrPropio_equivale_foldr
+-- +++ OK, passed 100 tests.
+
+-- prop_foldlPropio_equivale_foldl --> comprueba que la funcion foldlPropio es equivalente a foldl
+prop_foldlPropio_equivale_foldl :: [Int] -> Bool
+prop_foldlPropio_equivale_foldl xs = foldlPropio (*) 0 xs == foldl (*) 0 xs
+-- ghci> quickCheck prop_foldlPropio_equivale_foldl
+-- +++ OK, passed 100 tests.
+
+-- prop_zipPropio_equivale_zip --> comprueba que la funcion zipPropio es equivalente a zip
+prop_zipPropio_equivale_zip :: (Eq a, Eq b) => [a] -> [b] -> Bool
+prop_zipPropio_equivale_zip xs ys = zipPropio xs ys == zip xs ys
+-- ghci> quickCheck prop_zipPropio_equivale_zip
+-- +++ OK, passed 100 tests.
+
+-- prop_simularCaidaLibre_longitud --> comprueba que la longitud del resultado de la funcion simularCaidaLibre es siempre igual al numero de pasos + 1
+prop_simularCaidaLibre_longitud :: Int -> Double -> (Double, Double) -> Property
+prop_simularCaidaLibre_longitud p a (x, v) = p >= 0 ==> length (simularCaidaLibre p a (x,v)) == p + 1
+-- ghci> quickCheck prop_simularCaidaLibre_longitud
+-- +++ OK, passed 100 tests; 102 discarded.
+
+-- prop_hayColisionConAlguna_lista_vacia --> Comprueba que para una lista vacia de CajaColision (obstaculos), el resultado de 'hayColisionConAlguna' es siempre False
+prop_hayColisionConAlguna_lista_vacia :: CajaColision -> [CajaColision] -> Bool
+prop_hayColisionConAlguna_lista_vacia cajaInicial xs = hayColisionConAlguna cajaInicial [] == False
+-- ghci> quickCheck prop_hayColisionConAlguna_lista_vacia
+-- +++ OK, passed 100 tests.
