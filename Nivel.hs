@@ -11,20 +11,14 @@ type Nivel = [[Celda]] -- D. Definición del tipo sinonimo 'Nivel' para represen
 
 
 -- 1 Vectores 2D
-
-
-
 sumaVectores :: Vector2D -> Vector2D -> Vector2D
 sumaVectores v1 v2 = ((fst v1 + fst v2),(snd v1 + snd v2))
-
 
 escalarVector :: Double -> Vector2D -> Vector2D
 escalarVector x v = ((x * fst v),(x * snd v))
 
-
 distancia :: Vector2D -> Vector2D -> Double
 distancia v1 v2 = sqrt((fst v1 - fst v2)^2 + (snd v1 - snd v2)^2)
-
 
 -- 2 Cajas de colisión
 
@@ -37,9 +31,6 @@ solapan (x1,y1,ancho1,alto1) (x2,y2,ancho2,alto2) =
 
 
 -- Ejercicio 3 Lado de Colisión
-
-
-
 
 ladoColision :: CajaColision -> CajaColision -> String
 ladoColision (x1, y1, a1, h1) (x2, y2, a2, h2)
@@ -55,8 +46,6 @@ ladoColision (x1, y1, a1, h1) (x2, y2, a2, h2)
 
 
 -- 4 UTILIDADES DE LISTAS Y CADENAS
-
-
 splitOn :: Char -> String -> [String]
 splitOn _ [] = [""]
 splitOn c (x:xs)
@@ -65,54 +54,39 @@ splitOn c (x:xs)
     where
         lista = splitOn c xs
 
-
 trim :: String -> String
 trim xs = reverse (dropWhile esEspacio (reverse (dropWhile esEspacio xs)))
     where
         esEspacio c = c `elem` [' ', '\t', '\n']
 
-
-
-
 contarSiCumple :: (a -> Bool) -> [a] -> Int
 contarSiCumple p xs = length [x | x <- xs, p x]
-
-
-
 
 list2Vector2 :: [Double] -> Vector2D
 list2Vector2 [] = error "head : Lista vacia no posible convertir en Vector2"  
 list2Vector2 [x]  = error "head : Falta un elemento en la lista para convertir en Vector2"
 list2Vector2 (x:y:_) = (x, y)
 
-
-
-
 parsearNivel :: [String] -> Nivel
 parsearNivel s = s
-
 
 -- Funcion: esSolido --> Indica si una celda es una plataforma sólida, identificando con pattern matching si es el caracter del convenio indicado
 esSolido :: Celda -> Bool
 esSolido '#' = True
 esSolido _ = False
 
-
 -- Funcion: esMeta --> Indica si una celda es la meta del nivel, identificando con pattern matching si es el caracter del convenio indicado
 esMeta :: Celda -> Bool
 esMeta 'M' = True
 esMeta _ = False
-
 
 -- Funcion: esVacio --> Indica si una celda está vacia, identificando con pattern matching si es el caracter del convenio indicado
 esVacio :: Celda -> Bool
 esVacio '.' = True
 esVacio _ = False
 
-
 esEnemigo :: Celda -> Bool
 esEnemigo celda = not (esSolido celda || esMeta celda || esVacio celda)
-
 
 posicionesMeta :: Nivel -> [(Int, Int)]
 posicionesMeta nivel = [ (f, c)
@@ -298,18 +272,21 @@ foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
 
 --SUBTAREA 7
 -- Indicar si una caja colisiona con otras
---
+-- Para aprovechar el cortocircuito de (||) ante listas largas de obstáculos, comprobamos que el operador más eficiente
+-- es foldr, ya que con éste, si encontramos un caso que cumpla la condición la lista no se recorre más por lo que es mas eficiente
 hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
 hayColisionConAlguna cajaInicial obstaculos = foldr auxCombinadora False obstaculos
     where
         auxCombinadora caja resto = solapan cajaInicial caja || resto
 
 -- Contar cuantas celdas cumplen una condición
+-- En este caso no estamos buscando cumplir una condición, simplemente queremos un recuento sobre una lista, por tanto 
+-- lo adecuado sería utilizar foldl
 contarCeldasQueCumplen :: (Celda -> Bool) -> Nivel -> Int
 contarCeldasQueCumplen f = foldl contarCeldasFila 0
-where
-contarCeldasFila :: Int -> [Celda] -> Int
-contarCeldasFila ac fila = ac + contarFila fila
+    where
+    contarCeldasFila :: Int -> [Celda] -> Int
+    contarCeldasFila ac fila = ac + contarFila fila
 
     contarFila :: [Celda] -> Int
     contarFila = foldl contarCelda 0
@@ -318,3 +295,46 @@ contarCeldasFila ac fila = ac + contarFila fila
     contarCelda ac celda
         | f celda   = ac + 1
         | otherwise = ac
+
+--EJERCICIO EXTRA
+-- Comprueba que mapPropio equivale a map
+prop_mapPropio_equivale_map :: [Int] -> Bool
+prop_mapPropio_equivale_map xs =
+    mapPropio (+1) xs == map (+1) xs
+-- +++ OK, passed 100 tests.
+
+-- Comprueba que filterPropio produce el mismo resultado que filter
+prop_filterPropio_equivale_filter :: [Int] -> Bool
+prop_filterPropio_equivale_filter xs =
+    filterPropio even xs == filter even xs
+-- +++ OK, passed 100 tests.
+
+-- Comprueba que foldrPropio produce el mismo resultado que foldr
+prop_foldrPropio_equivale_foldr :: [Int] -> Bool
+prop_foldrPropio_equivale_foldr xs =
+    foldrPropio (+) 0 xs == foldr (+) 0 xs
+-- +++ OK, passed 100 tests.
+
+-- Comprueba que foldlPropio produce el mismo resultado que foldl
+prop_foldlPropio_equivale_foldl :: [Int] -> Bool
+prop_foldlPropio_equivale_foldl xs =
+    foldlPropio (+) 0 xs == foldl (+) 0 xs
+-- +++ OK, passed 100 tests.
+
+-- Comprueba que zipPropio produce el mismo resultado que zip
+prop_zipPropio_equivale_zip :: [Int] -> [Int] -> Bool
+prop_zipPropio_equivale_zip xs ys =
+    zipPropio xs ys == zip xs ys
+-- +++ OK, passed 100 tests.
+
+-- Comprueba que una simulación de n pasos genera n + 1 estados
+prop_simularCaidaLibre_longitud :: Int -> Property
+prop_simularCaidaLibre_longitud n =
+    n >= 0 ==> length (simularCaidaLibre n (-1) (0,0)) == n + 1
+-- +++ OK, passed 100 tests; 90 discarded.
+
+-- Comprueba que una lista vacía de obstáculos nunca produce colisión
+prop_hayColisionConAlguna_lista_vacia :: CajaColision -> Bool
+prop_hayColisionConAlguna_lista_vacia caja =
+    hayColisionConAlguna caja [] == False
+-- +++ OK, passed 100 tests.
