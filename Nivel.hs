@@ -223,7 +223,7 @@ agruparPorCaracter fila = auxColumnas 0 fila
 -- 3.1 simularCaidaLibre 
 simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)] -- Simula la caída libre paso a paso devolviendo la lista de estados (posición, velocidad).
 simularCaidaLibre 0 _ (pos, vel) = [(pos, vel)]
-simularCaidaLibre n gravedad (pos, vel) = 
+simularCaidaLibre n gravedad (pos, vel) =   
     (pos, vel) : simularCaidaLibre (n - 1) gravedad (pos + vel, vel + gravedad)
 
 
@@ -250,7 +250,7 @@ prepararLineas (x:xs)
 --------------------------------------------------------------------------------------------------------------
 
 -- 5.1 mapPropio
-mapPropio:: (Int->Int) -> [Int]->[Int]
+mapPropio:: (a -> b) -> [a] -> [b]
 mapPropio _ [] = []
 mapPropio operacion (x:xs) = operacion x : mapPropio operacion xs
 
@@ -273,20 +273,26 @@ foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
 
 
 -- 7.1 hayColisionConAlguna
--- Se elige foldr (y no foldl) porque permite cortocircuito (lazy evaluation) con el operador ||,
+-- Elijo foldr (y no foldl) porque permite cortocircuito (lazy evaluation) con el operador ||,
 -- deteniendo la búsqueda de inmediato al encontrar la primera colisión sin necesidad de procesar toda la lista.
 hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
-hayColisionConAlguna caja = foldr (\obstaculo acumulador-> solapan caja obstaculo || acumulador) False
+hayColisionConAlguna caja obstaculos = foldr comprobar False obstaculos
+  where
+    comprobar :: CajaColision -> Bool -> Bool
+    comprobar obstaculo acumulador = solapan caja obstaculo || acumulador
 
 -- 7.2 contarCeldasQueCumplen  
-
--- Se elige foldl porque se trata de una acumulación numérica lineal que procesa 
--- todos los elementos sin necesidad de cortocircuito ni de reconstruir estructuras
+-- Elijo foldl porque se trata de una acumulación numérica lineal que procesa 
+-- todos los elementos sin necesidad de cortocircuito ni de reconstruir estructuras.
 contarCeldasQueCumplen :: (Char -> Bool) -> Grid -> Int
-contarCeldasQueCumplen cond nivel = foldl (\ac fila -> ac + contarFila fila) 0 nivel
+contarCeldasQueCumplen cond nivel = foldl sumarFila 0 nivel
   where
+    sumarFila :: Int -> String -> Int
+    sumarFila ac fila = ac + contarFila fila
     contarFila :: String -> Int
-    contarFila fila = foldl (\ac c -> if cond c then ac + 1 else ac) 0 fila
+    contarFila fila = foldl contarCelda 0 fila  
+    contarCelda :: Int -> Char -> Int
+    contarCelda ac c = if cond c then ac + 1 else ac
 
 -- Bonus: Propiedades con QuickCheck
 
