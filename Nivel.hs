@@ -1,393 +1,147 @@
-import Test.QuickCheck
+module Nivel ( ErrorNivel(..) , 
+               NivelData(..) , 
+               splitOn , 
+               buscarClave , 
+               parsearFichero , 
+               validarNivel , 
+               parsearNivelCompleto , 
+               tamCelda , 
+               posicionCelda , 
+               gridAPlataformas , 
+               metasDesdeGrid , 
+               enemigosDesdeGrid,
+               parsearNiveles,
+               todasLasPosiciones 
+            ) where 
 
--- Tipos sinónimos
-type Vector2D = (Double, Double)
-type CajaColision = (Double, Double, Double, Double) -- Posición (x, y), Ancho y Alto
-type Celda = Char
-type Grid = [String] -- String de caracteres Celda, grid = [[Celda]]
+import Tipos 
+import Objeto 
+import Data.List (stripPrefix, sortOn)
+import Text.Read (readMaybe)
 
--- 1 Vectores 2D
+-- Subtarea 5 — La mónada Either: interpretar y validar un nivel
 
-sumaVectores :: Vector2D -> Vector2D -> Vector2D
-sumaVectores v1 v2 = ((fst v1 + fst v2),(snd v1 + snd v2))
+data ErrorNivel
+  = FormatoInvalido String
+  | NivelSinMeta
+  | NivelConVariasMetas Int
+  deriving (Eq, Show)
 
-escalarVector :: Double -> Vector2D -> Vector2D
-escalarVector x v = ((x * fst v),(x * snd v))
-
-distancia :: Vector2D -> Vector2D -> Double
-distancia v1 v2 = sqrt((fst v1 - fst v2)^2 + (snd v1 - snd v2)^2)
-
--- 2 Cajas de colisión
-
-solapan :: CajaColision -> CajaColision -> Bool
-solapan (x1,y1,ancho1,alto1) (x2,y2,ancho2,alto2) =
-    x1 + ancho1 > x2 &&
-    x2 + ancho2 > x1 &&
-    y1 + alto1 > y2 &&
-    y2 + alto2 > y1
-
--- 3 Lado de Colisión
-
-ladoColision :: CajaColision -> CajaColision -> String
-ladoColision (x1, y1, a1, h1) (x2, y2, a2, h2)
-    | arriba <= abajo && arriba <= izquierda && arriba <= derecha = "Arriba"
-    | abajo <= arriba && abajo <= izquierda && abajo <= derecha = "Abajo"
-    | izquierda <= arriba && izquierda <= abajo && izquierda <= derecha = "Izquierda"
-    | otherwise = "Derecha"
-    where
-        arriba    = (y2 + h2) - y1
-        abajo     = (y1 + h1) - y2
-        izquierda = (x1 + a1) - x2
-        derecha   = (x2 + a2) - x1
-
--- 4 UTILIDADES DE LISTAS Y CADENAS
+data NivelData = NivelData
+  { nombreNivel :: String
+  , fondos      :: [Int]
+  , gridNivel   :: Grid
+  } deriving (Eq, Show)
 
 splitOn :: Char -> String -> [String]
-splitOn _ [] = [""]
-splitOn c (x:xs)
-    | c == x    = "" : lista
-    | otherwise = (x : head lista) : tail lista
-    where
-        lista = splitOn c xs
+splitOn c s = case break (== c) s of
+  (a, [])  -> [a]
+  (a, _:b) -> a : splitOn c b
 
-trim :: String -> String
-trim xs = reverse (dropWhile esEspacio (reverse (dropWhile esEspacio xs)))
-    where
-        esEspacio c = c `elem` [' ', '\t', '\n']
-
-contarSiCumple :: (a -> Bool) -> [a] -> Int
-contarSiCumple p xs = length [x | x <- xs, p x]
-
-list2Vector2 :: [Double] -> Vector2D
-list2Vector2 [] = error "head : Lista vacia no posible convertir en Vector2"  
-list2Vector2 [x]  = error "head : Falta un elemento en la lista para convertir en Vector2"
-list2Vector2 (x:y:_) = (x, y)
-
--- 5 PARSEO DE NIVEL
-
-parsearNivel :: [String] -> Grid
-parsearNivel s = s
-
--- Funcion: esSolido --> Indica si una celda es una plataforma sólida, identificando con pattern matching si es el caracter del convenio indicado
-esSolido :: Celda -> Bool
-esSolido '#' = True
-esSolido _ = False
-
--- Funcion: esMeta --> Indica si una celda es la meta del nivel, identificando con pattern matching si es el caracter del convenio indicado
-esMeta :: Celda -> Bool
-esMeta 'M' = True
-esMeta _ = False
-
--- Funcion: esVacio --> Indica si una celda está vacia, identificando con pattern matching si es el caracter del convenio indicado
-esVacio :: Celda -> Bool
-esVacio '.' = True
-esVacio _ = False
-
--- Función: esEnemigo
--- Indica si una celda marca el punto de inicio de un enemigo (cualquier carácter que no sea sólido, meta ni vacío).
-esEnemigo :: Celda -> Bool
-esEnemigo celda = not (esSolido celda || esMeta celda || esVacio celda)
-
-posicionesMeta :: Grid -> [(Int, Int)]
-posicionesMeta nivel = [ (f, c)
-  | (f, fila) <- zip [0..] nivel
-  , (c, celda) <- zip [0..] fila
-  , esMeta celda
-  ]
-
-posicionesEnemigos :: Grid -> [(Int, Int, Char)]
-posicionesEnemigos nivel =
-    [(indiceLista, indiceString, caracter)
-    |(indiceLista, stringLista) <- zip [0..] nivel
-    ,(indiceString, caracter) <- zip [0..] stringLista
-    , esEnemigo caracter
-    ]
-
--- Función: agruparRachas
-agruparRachas :: String -> [(Int, Int)]
-agruparRachas fila = aux 0 fila
-  where
-    aux :: Int -> String -> [(Int, Int)]
-    aux _ "" = []
-    aux indice xs
-      | not (esSolido (head xs)) =
-          let (_, resto) = span (not . esSolido) xs     -- separa los caracteres no sólidos del resto con "_" ignora la parte no solida y resto = parte de la fila que queda
-              saltados   = length xs - length resto
-          in aux (indice + saltados) resto       -- avanzamos el índice y seguimos buscando
-      | otherwise =
-          let (solidos, resto) = span esSolido xs   -- cogemos todos los caracteres sólidos consecutivos, resto = lo que queda después de la racha
-              longitud = length solidos  -- lo que mide la racha
-          in (indice, longitud) : aux (indice + longitud) resto -- Guardamos (posición inicial, longitud) y seguimos buscando más rachas después de esta
-
---EJERCICIO 6
--- Suma conmutativa
-prop_suma_conmutativa :: Vector2D -> Vector2D -> Bool
-prop_suma_conmutativa a b = sumaVectores a b == sumaVectores b a
--- +++ OK, passed 100 tests.
-
--- Sumar en un orden u otro da el mismo resultado
-prop_suma_asociativa :: Vector2D -> Vector2D -> Vector2D -> Bool
-prop_suma_asociativa a b c = sumaVectores (sumaVectores a b) c == sumaVectores a (sumaVectores b c)
---Failed! Falsified (after 9 tests and 12 shrinks):
---(0.6,0.0)
---(0.3,0.0)
---(4.0,0.0)
---Falla por pequeños errores acumulados al redondear
-
--- Escalar un vector por 1 no lo cambia
-prop_escalar_neutro :: Vector2D -> Bool
-prop_escalar_neutro v = escalarVector 1 v == v
--- +++ OK, passed 100 tests.
-
--- La distancia entre dos puntos nunca es negativa
-prop_distancia_no_negativa :: Vector2D -> Vector2D -> Bool
-prop_distancia_no_negativa a b = distancia a b >= 0
--- +++ OK, passed 100 tests.
-
--- La distancia de a a b es igual que de b a a
-prop_distancia_simetrica :: Vector2D -> Vector2D -> Bool
-prop_distancia_simetrica a b = distancia a b == distancia b a
--- +++ OK, passed 100 tests.
-
--- solapan a b es igual a solapan b a
-prop_solapan_simetrica :: CajaColision -> CajaColision -> Bool
-prop_solapan_simetrica a b = solapan a b == solapan b a
--- +++ OK, passed 100 tests.
-
--- Aplicar trim dos veces da el mismo resultado que aplicarlo una vez
-prop_trim_idempotente :: String -> Bool
-prop_trim_idempotente s = trim (trim s) == trim s
--- +++ OK, passed 100 tests.
-
--- Si el separador no aparece en la cadena, splitOn devuelve [cadena]
-prop_splitOn_sin_separador :: Char -> String -> Property
-prop_splitOn_sin_separador c s = notElem c s ==> splitOn c s == [s]
--- +++ OK, passed 100 tests; 14 discarded.
-
--- El resultado de contarSiCumple nunca es mayor que la longitud de la lista
-prop_contarSiCumple_acotado :: [Int] -> Bool
-prop_contarSiCumple_acotado xs = contarSiCumple even xs <= length xs
-
--- * / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / /
-
--- TAREA 2
-
--- BLOQUE 1 - RECURSION
--- 1 Reimplementación recursiva de las consultas del nivel 
-
--- Funcion: posicionesMetaRec
--- Dado el nivel completo, devuelve la lista de posiciones (fila, columna) en las que aparece la meta, recorriendo de forma recursiva las filas y las columnas, acumulando indice en cada llamada recursiva
-
-posicionesMetaRec :: Grid -> [(Int, Int)]
-posicionesMetaRec [] = []
-posicionesMetaRec nivel = posicionesMetaRecAux 0 [] nivel -- funcion auxiliar para recursion explícita con acumulador e indice de fila inicializado a 0
-
-posicionesMetaRecAux :: Int -> [(Int, Int)] -> Grid -> [(Int, Int)] -- recibe el indice acumulativo de fila, el acumulador con las posiciones que va encontrando (que tiene mismo tipo que valor de retorno) y el Nivel (Grid) dado.
-posicionesMetaRecAux f ac [] = ac 
-posicionesMetaRecAux f ac (fila:resto) = posicionesMetaRecAux (f+1) (recorreFila f 0 ac fila) resto
--- en cada llamada recursiva, aumenta el indicador de fila en 1 para iterar por la siguiente fila; recorre la fila actual columna por columna para identificar todas las columnas con Metas; y se llama con el resto del nivel (`resto`),
--- utilizando otra func auxiliar de recursion explicita para recorrer la fila actual 
-
-recorreFila :: Int -> Int -> [(Int, Int)] -> [Celda] -> [(Int, Int)] -- func aux para recorrer fila actual que devuelve todas las coordenadas encontradas añadidas al acumulador de la fila actual, utilizando un indicador de columna para calcular las posiciones
-recorreFila f c ac [] = ac -- caso base: el nivel actual es vació -> retorna el valor del ac actual
-recorreFila f c ac (celda:restoFila) -- caso recursivo: utilizando patrones para verificar si la primera celda de la fila que estamos procesando es Meta
- | esMeta celda = recorreFila f (c+1) (ac ++ [(f,c)]) restoFila -- esMeta == True -> llamada recursiva aumentando indicador de columna; añadimos al ac la coordenada encontrada; y seguimos la llamada con el resto de la fila
- | otherwise = recorreFila f (c+1) ac restoFila -- esMeta == False -> iteramos por el resto de la fila descartando la coordenada (f,c) actual
+buscarClave :: String -> [String] -> Maybe String -- Dada una clave y una lista de claves, busca en dicha lista la primera línea que comience por el prefijo dado y devuelve el resto de esa linea.
+buscarClave _ [] = Nothing
+buscarClave clave (cl:lista) = case stripPrefix clave cl of
+    Just resto -> Just resto
+    Nothing    -> buscarClave clave lista
 
 
--- Función: posicionesEnemigosRec -> igual que posicionesMetaRec, pero para las posiciones e identificadores de los enemigos
-posicionesEnemigosRec :: Grid -> [(Int, Int, Celda)]
-posicionesEnemigosRec [] = []
-posicionesEnemigosRec nivel = posicionesEnemigosRecAux 0 [] nivel
+-- Funcion auxiliar maybeToEither para parsear tipo Maybe a Either usando patrones
+maybeToEither :: b -> Maybe a -> Either b a
+maybeToEither _ (Just v) = Right v
+maybeToEither err Nothing = Left err
 
-posicionesEnemigosRecAux :: Int -> [(Int, Int, Celda)] -> Grid -> [(Int, Int, Celda)]
-posicionesEnemigosRecAux f ac [] = ac
-posicionesEnemigosRecAux f ac (fila:resto) = posicionesEnemigosRecAux (f+1) (recorreFilaEnem f 0 ac fila) resto
+parsearFichero :: [String] -> Either ErrorNivel NivelData -- Dado un fichero de nivel (lineas), Devuelve un Either indicando si hay un error en el Nivel
+parsearFichero ficheroNivel = do 
+    let (cabecera, resto) = break (== "---") ficheroNivel -- 1. separamos la cabecera "---" del resto del mapa
 
-recorreFilaEnem :: Int -> Int -> [(Int, Int, Celda)] -> [Celda] -> [(Int, Int, Celda)]
-recorreFilaEnem f c ac [] = ac
-recorreFilaEnem f c ac (celda:restoFilaEnem)
- | esEnemigo celda = recorreFilaEnem f (c+1) (ac ++ [(f,c, celda)]) restoFilaEnem
- | otherwise = recorreFilaEnem f (c+1) ac restoFilaEnem
+    case resto of -- validamos que exista el separador "---"
+        [] -> Left (FormatoInvalido "Falta la cabecera '---'")
+        ("---": mapaTexto) -> do
+            if null mapaTexto -- validamos que exista el mapa tras el separador
+                then Left (FormatoInvalido "No hay mapa tras '---'")
+                else do
+                    -- 2. Extraemos la clave NOMBRE:
+                    nombre <- maybeToEither (FormatoInvalido "Falta la clave 'NOMBRE: '") (buscarClave "NOMBRE: " cabecera)
 
--- 2 Generalización por recursión de agruparRachas
+                    -- 3. Extraemos la clave FONDOS: 
+                    fondos <- maybeToEither (FormatoInvalido "Falta la clave 'FONDOS: '") (buscarClave "FONDOS: " cabecera)
 
--- Función: agruparPorCaracter -> Recorre una fila y 
--- agrupa en tríos (columna de inicio, longitud, carácter) las rachas de caracteres consecutivos iguales.
+                    -- 4. Convertir los fondos (lista separada por comas) a números [Int]
+                    let listaFondos = splitOn ',' fondos 
+                    fondosNum <- maybeToEither (FormatoInvalido "FONDOS contiene valores no numéricos") (mapM readMaybe listaFondos)
 
-agruparPorCaracter :: [Celda] -> [(Int, Int, Celda)]
-agruparPorCaracter "" = [] -- caso base: si la fila esta vacia, devuelve una lista vacia
-agruparPorCaracter (chInicial:resto) = agruparPorCaracterRAux 0 1 chInicial resto 
--- caso recursivo: llamada a la funcion auxiliar con indice acumulador de columna, longitud y caracter actual al que se le pasa el resto de la fila ademas
+                    -- 5. Parseamos las celdas del mapa a Grid
+                    let grid = parsearGrid mapaTexto
 
-agruparPorCaracterRAux :: Int -> Int -> Celda -> [Celda] -> [(Int, Int, Celda)] -- func auxiliar: lleva con un indice
-agruparPorCaracterRAux col lng ch [] = [(col, lng, ch)]
-agruparPorCaracterRAux col lng ch (celda:resto)
- | celda == ch =  agruparPorCaracterRAux col (lng+1) ch resto
- | otherwise = (col, lng, ch) : agruparPorCaracterRAux (col+lng) 1 celda resto
+                    return (NivelData nombre fondosNum grid)
 
+-- TAREA 2:
 
--- 3 Recursion Numerica: simulacion de movimiento
-
--- Función: simularCaidaLibre --> Dado un número de pasos, una aceleración (gravedad) 
--- y un estado inicial (posición, velocidad), calcula recursivamente 
--- la lista de todos los estados por los que pasa un objeto en caída libre 
--- con avance discreto
-
-simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)]
--- simularCaidaLibre 0 a sInicial = [sInicial]
-simularCaidaLibre p a (x, v) = (x,v) : simularCaidaLibreRAux [] p a (x,v)
-
-simularCaidaLibreRAux :: [(Double, Double)] -> Int -> Double -> (Double, Double) -> [(Double, Double)]
-simularCaidaLibreRAux ac 0 a (x, v) = ac
-simularCaidaLibreRAux ac p a (x, v) = simularCaidaLibreRAux (ac ++ [(x + v, v + a)]) (p-1) a (x + v, v + a)
-
--- (pos anterior + velocidad anterior, velocidad anterior + aceleracion)
-
--- 4 Recursión sobre dos listas a la vez (0.5 puntos)
-
--- Función: zipPropio --> 
-    -- Empareja los elementos de dos listas, uno a uno, 
-    -- deteniéndose en cuanto una de las dos se acaba
-
-zipPropio :: [a] -> [b] -> [(a,b)]
-zipPropio [] _ = []
-zipPropio _ [] = []
-zipPropio (x:xs) (y:ys) = (x,y) : zipPropio xs ys
-
--- 5 Recursión con descarte condicional: preparación de líneas
-
--- Función: esComentarioOVacia --> Dada una línea (lista de caracteres), devuelve un Bool indicando si dicha linea es vacía (" ") o es un comentario (que empiezan por ';')
-esComentarioOVacia :: String -> Bool
-esComentarioOVacia "" = True
-esComentarioOVacia (x:xs)
- | x == ';' = True
- | x == ' ' = esComentarioOVacia xs
- | otherwise = False
-
--- Función: prepararLineas --> Dada una lista de líneas de fichero de nivel, recorre la lista limpiando el formato: elimina los espacios vacios al principio y al final y las lineas con comentarios
-prepararLineas :: [String] -> Grid
-prepararLineas = prepararLineasAux []
-
-prepararLineasAux :: Grid -> [String] -> Grid
-prepararLineasAux ac [] = reverse ac
-prepararLineasAux ac (xs:xss)
- | esComentarioOVacia xs = prepararLineasAux ac xss
- | otherwise = prepararLineasAux (iteraYPrepara xs : ac) xss
- where
-    iteraYPrepara :: String -> String
-    iteraYPrepara "" = ""
-    iteraYPrepara (x:xs) 
-     | x /= ' ' = x : iteraYPrepara xs
-     | otherwise = iteraYPrepara xs
-    
-
--- Bloque 2: Funciones de orden superior
--- Subtarea 5: mapPropio y filterPropio
-
--- Función: mapPropio --> dada una funcion y una lista de tipo generico, devuelve la lista de resultados aplicando la funcion a cada elemento, utilizando orden superior
-
-mapPropioR :: (a -> b) -> [a] -> [b] -- Utilizando patrones con recursion no terminal
-mapPropioR _ [] = []
-mapPropioR f (x:xs) = f x : mapPropioR f xs
-
--- Utilizando funciones orden superior:
-mapPropio :: (a -> b) -> [a] -> [b]
-mapPropio f = foldr auxMapPropio []
- where
-    auxMapPropio x r = f x : r
-
--- Funcion: filterPropio --> Dado un predicado y una lista de elementos, devuelve la lista de los elementos que cumplen el predicado
-filterPropio :: (a -> Bool) -> [a] -> [a]
-filterPropio p = foldr auxCond []
- where
-    auxCond elem ac = if p elem then elem : ac else ac
-
-
--- Subtarea 6: foldrPropio y foldlPropio
-
--- Funcion: foldrPropio --> dado una funcion binaria, un elemento incial y una lista de elementos de distinto tipo, devuelve la combinacion de los elementos de la lista usando la funcion binaria
-foldrPropio :: (a -> b -> b) -> b -> [a] -> b 
-foldrPropio _ e [] = e
-foldrPropio f e (x:xs) = f x (foldrPropio f e xs) -- llamada recursiva con el resto de la lista para combinar de derecha (final de lista) a izquierda (inicio)
-
--- Función: foldlPropio 
-foldlPropio :: (b -> a -> b) -> b -> [a] -> b
-foldlPropio _ ac []     = ac
-foldlPropio f ac (x:xs) = foldlPropio f (f ac x) xs
-
--- Subtarea 7: Aplicación justificada de foldr/foldl
-
--- Funcion: hayColisionConAlguna --> Dada una cajaColision de un objeto, y una lista de cajasColision
--- indicar si existe colision con alguna de ellas
--- Debe implementarse con foldr
-
--- Utilizo la funcion de la Tarea 1: `solapan`, para comprobar si colisionan en algun lado
-hayColisionConAlguna :: CajaColision -> [CajaColision] -> Bool
-hayColisionConAlguna cajaInicial = foldr auxCombinadora False
- where
-    auxCombinadora caja r = solapan cajaInicial caja || r
--- En esta funcion utilizamos 'foldr' porque nos permite aprovechar la evaluación perezosa (lazy evaluation): 
--- al combinar las condiciones con el operador (||), en el momento en que 'solapan cajaInicial caja' devuelve True,
--- se deja de evaluar y se devuelve True inmediatamente sin evaluar el resto de cajas, ya que el operador (||) esta definido de forma perezosa por la izquierda.
-
--- Función: contarCeldasQueCumplen --> Dados una funcion de la Tarea 1 y un Nivel completo, cuenta cuantas celdas hay que cumplen con la funcion dada
 contarCeldasQueCumplen :: (Celda -> Bool) -> Grid -> Int
-contarCeldasQueCumplen f = foldl contarCeldasFila 0
- where
-    contarCeldasFila :: Int -> [Celda] -> Int -- suma al acumulador el numero de celdas que cumplen la funcion en la fila actual
-    contarCeldasFila ac fila = ac + contarFila fila
-    -- contarFila: cuenta cuantas celdas cumplen la condicion en una sola fila mediante foldl
-    contarFila = foldl contarCelda 0
-    -- Suma 1 al acumulador si la celda actual cumple f
-    contarCelda ac celda 
-     | f celda = ac + 1
-     | otherwise = ac
+contarCeldasQueCumplen condicion nivel = foldl sumarFila 0 nivel -- empiezo contando en cero y voy sumando las celdas válidas
+  where
+    sumarFila :: Int -> [Celda] -> Int
+    sumarFila acumulador fila =
+        acumulador + contarFila fila
 
--- Justificacion: para contar celdas necesitamos iterar el nivel entero, 
--- y puesto que tenemos que procesar sumando de forma acumulativa todos los elementos de izquierda a derecha
--- que cumplan la condicion, foldl es la opcion que nos permite hacer esto (de izq a derecha).
+    contarFila :: [Celda] -> Int
+    contarFila fila = foldl contarCelda 0 fila
 
--- Bonus: Propiedades con QuickCheck
+    contarCelda :: Int -> Celda -> Int
+    contarCelda acumulador celda
+      | condicion celda = acumulador + 1
+      | otherwise = acumulador
+                    
+validarNivel :: NivelData -> Either ErrorNivel NivelData
+validarNivel nivelData 
+    | numMetas == 0 = Left NivelSinMeta
+    | numMetas > 1 = Left (NivelConVariasMetas numMetas)
+    | otherwise = Right nivelData
+    where
+        numMetas = contarCeldasQueCumplen esMeta (gridNivel nivelData)
 
--- prop_mapPropio_equivale_map --> comprueba que la funcion mapPropio es equivalente a map
-prop_mapPropio_equivale_map :: (Num a, Eq a) => [a] -> Bool
-prop_mapPropio_equivale_map xs = mapPropio (^2) xs == map (^2) xs
--- ghci> quickCheck prop_mapPropio_equivale_map
--- +++ OK, passed 100 tests.
+parsearNivelCompleto :: [String] -> Either ErrorNivel NivelData
+parsearNivelCompleto nivel = parsearFichero nivel >>= validarNivel
 
--- prop_filterPropio_equivale_filter --> comprueba que la funcion filterPropio es equivalente a filter
-prop_filterPropio_equivale_filter :: (Integral a, Eq a) => [a] -> Bool
-prop_filterPropio_equivale_filter xs = filterPropio odd xs == filter odd xs
--- ghci> quickCheck prop_filterPropio_equivale_filter
--- +++ OK, passed 100 tests.
+-- BLOQUE 3 — Gloss: del mapa al mundo jugable
+-- Subtarea 6 — Del mapa a los objetos, y de los objetos a la pantalla 
 
--- prop_foldrPropio_equivale_foldr --> comprueba que la funcion foldrPropio es equivalente a foldr
-prop_foldrPropio_equivale_foldr :: [Int] -> Bool
-prop_foldrPropio_equivale_foldr xs = foldrPropio (-) 0 xs == foldr (-) 0 xs
--- ghci> quickCheck prop_foldrPropio_equivale_foldr
--- +++ OK, passed 100 tests.
+-- 6A. Del mapa a los objetos
+tamCelda :: Float
+tamCelda = 40 -- cada celda del mapa mide `tamCelda = 40` unidades.
 
--- prop_foldlPropio_equivale_foldl --> comprueba que la funcion foldlPropio es equivalente a foldl
-prop_foldlPropio_equivale_foldl :: [Int] -> Bool
-prop_foldlPropio_equivale_foldl xs = foldlPropio (*) 0 xs == foldl (*) 0 xs
--- ghci> quickCheck prop_foldlPropio_equivale_foldl
--- +++ OK, passed 100 tests.
+posicionCelda :: Int -> Int -> Int -> Vector2D -- Dado un numero total de filas en un mapa, una fila i una columna j, calcula la posicion de la celda que se encuentra en esa posicion (i, j)
+posicionCelda total i j = (realToFrac x, realToFrac y)
+    where
+        (x, y) = (fromIntegral j * tamCelda, fromIntegral (total-1-i) * tamCelda)
 
--- prop_zipPropio_equivale_zip --> comprueba que la funcion zipPropio es equivalente a zip
-prop_zipPropio_equivale_zip :: (Eq a, Eq b) => [a] -> [b] -> Bool
-prop_zipPropio_equivale_zip xs ys = zipPropio xs ys == zip xs ys
--- ghci> quickCheck prop_zipPropio_equivale_zip
--- +++ OK, passed 100 tests.
+gridAPlataformas :: Grid -> [Plataforma] -- Dada un nivel (Lista de listas de Celda), devuelve una lista de Plataformas por cada celda Solido encontrada en el nivel
+gridAPlataformas grd = [Plataforma (realToFrac x, realToFrac y, tamCelda, tamCelda) | (i, fila) <- zip [0..] grd, 
+                                                                (j, celda) <- zip [0..] fila, 
+                                                                esSolido celda, 
+                                                                let (x,y) = posicionCelda (length grd) i j]
 
--- prop_simularCaidaLibre_longitud --> comprueba que la longitud del resultado de la funcion simularCaidaLibre es siempre igual al numero de pasos + 1
-prop_simularCaidaLibre_longitud :: Int -> Double -> (Double, Double) -> Property
-prop_simularCaidaLibre_longitud p a (x, v) = p >= 0 ==> length (simularCaidaLibre p a (x,v)) == p + 1
--- ghci> quickCheck prop_simularCaidaLibre_longitud
--- +++ OK, passed 100 tests; 102 discarded.
+metasDesdeGrid :: Grid -> [Meta] -- Dado un nivel, devuelve la posicion de las celdas Metas de ese nivel
+metasDesdeGrid grd = [Meta {posMeta = posM} | (i, fila) <- zip [0..] grd, 
+                                              (j, celda) <- zip [0..] fila, 
+                                              esMeta celda, 
+                                              let posM = posicionCelda (length grd) i j]
 
--- prop_hayColisionConAlguna_lista_vacia --> Comprueba que para una lista vacia de CajaColision (obstaculos), el resultado de 'hayColisionConAlguna' es siempre False
-prop_hayColisionConAlguna_lista_vacia :: CajaColision -> [CajaColision] -> Bool
-prop_hayColisionConAlguna_lista_vacia cajaInicial xs = hayColisionConAlguna cajaInicial [] == False
--- ghci> quickCheck prop_hayColisionConAlguna_lista_vacia
--- +++ OK, passed 100 tests.
+enemigosDesdeGrid :: Grid -> [Enemigo] -- dado un nivel, devuelve los enemigos de ese nivel con la posicion de la celda en la que se encuentran
+enemigosDesdeGrid grd = [Enemigo {identificador = show ident, 
+                                  posicionE = posE, 
+                                  velocidadE = (-40, 0), 
+                                  dimension = (realToFrac tamCelda, realToFrac tamCelda), 
+                                  tipoDeEnemigo = Patrulla} | (i, fila) <- zip [0..] grd, (j, ident) <- zip [0..] fila,
+                                  esEnemigo ident,
+                                  let posE = posicionCelda (length grd) i j]
+
+
+-- BONUS
+parsearNiveles :: [[String]] -> Either ErrorNivel [NivelData] -- módulo Nivel
+parsearNiveles = traverse parsearNivelCompleto
+
+todasLasPosiciones :: Grid -> [(Int, Int)]               -- módulo Nivel
+todasLasPosiciones g = (,) <$> [0 .. length g - 1] <*> [0 .. numCols - 1] 
+  where 
+    numCols = if null g then 0 else length (head g)
