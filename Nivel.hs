@@ -1,275 +1,118 @@
-type Abscisas = Double
-type Ordenadas = Double
-type Ancho = Double
-type Alto = Double
--- ##############################################################################
--- Cargar con ghci :l Nivel.hs guardar y recargar con :r
+module Nivel
+  ( ErrorNivel(..), NivelData(..)
+  , splitOn, buscarClave
+  , parsearFichero, validarNivel, parsearNivelCompleto
+  , tamCelda, posicionCelda, gridAPlataformas, metasDesdeGrid, enemigosDesdeGrid
+  , parsearNiveles, todasLasPosiciones
+  ) where
 
--- Ejercicio 1 Vectores 2D
-type Vector2D = (Abscisas, Ordenadas)
+import Control.Monad (msum)
+import Data.List (stripPrefix)
+import Objeto (Enemigo(..), Meta(..), Plataforma(..))
+import Text.Read (readMaybe)
+import Tipos (Celda(..), Grid, TipoEnemigo(..), Vector2D, esMeta, parsearGrid)
 
-sumaVectores :: Vector2D -> Vector2D -> Vector2D -- Suma por separado cada coordenada y crea un nuevo vector
-sumaVectores p s = ( fst p + fst s, snd p + snd s ) 
+-- Por qué falla la lectura o validación de un nivel.
+data ErrorNivel
+  = FormatoInvalido String
+  | NivelSinMeta
+  | NivelConVariasMetas Int
+  deriving (Eq, Show)
 
-escalarVectores :: Double -> Vector2D -> Vector2D -- Multiplica ambas coordenadas de un vector por un escalar y crea uno nuevo
-escalarVectores n v = ( fst v * n, snd v * n )
+-- Un nivel ya interpretado: nombre, fondos y mapa.
+data NivelData = NivelData
+  { nombreNivel :: String
+  , fondos      :: [Int]
+  , gridNivel   :: Grid
+  } deriving (Eq, Show)
 
-distancia :: Vector2D -> Vector2D -> Double    -- La función calcula por pitagoras la distancia entre puntos
-distancia p s =   sqrt ( ( fst p - fst s) ^ 2 + ( snd p - snd s ) ^ 2 )
-
-
--- Ejercicio 2 Cajas de Colisión 
-type Caja = (Abscisas, Ordenadas, Ancho, Alto)
-
-solapan :: Caja -> Caja -> Bool
-solapan (x1, y1, a1, h1) (x2, y2, a2, h2) = 
-    x1 < x2 + a2 &&
-    x2 < x1 + a1 &&
-    y1 < y2 + h2 &&
-    y2 < y1 + h1
-
-
--- Ejercicio 3 Lado de Colisión
-
-
-ladoColision :: Caja -> Caja -> String
-ladoColision (x1, y1, a1, h1) (x2, y2, a2, h2) 
-    | arriba <= abajo && arriba <= izquierda && arriba <= derecha = "Arriba"
-    | abajo <= arriba && abajo <= izquierda && abajo <= derecha = "Abajo"
-    | izquierda <= arriba && izquierda <= abajo && izquierda <= derecha = "Izquierda"
-    | otherwise = "Derecha"
-    where
-        arriba    = (y2 + h2) - y1
-        abajo     = (y1 + h1) - y2
-        izquierda = (x1 + a1) - x2
-        derecha   = (x2 + a2) - x1
-
--- 4 Utilidades de listas y cadenas
-
+-- Divide una cadena por un carácter separador.
 splitOn :: Char -> String -> [String]
-splitOn _ [] = [""]
-splitOn separador (x:xs)
-    | x == separador = "" : splitOn separador xs
-    | otherwise = (x : primera) : resto
-    where
-        (primera:resto) = splitOn separador xs
+splitOn c s = case break (== c) s of
+  (a, [])  -> [a]
+  (a, _:b) -> a : splitOn c b
 
+-- Devuelve lo que sigue a la clave en la primera línea que empiece por ella.
+buscarClave :: String -> [String] -> Maybe String
+buscarClave clave = msum . map (stripPrefix clave)
 
-trim :: String -> String
-trim = quitarFinal . quitarInicio
-    where
-        quitarInicio [] = []
-        quitarInicio (x:xs)
-            | x == ' ' || x == '\t' || x == '\n' = quitarInicio xs
-            | otherwise = x:xs
+-- Convierte un Maybe en Either usando el error dado si es Nothing (auxiliar interna).
+maybeAEither :: e -> Maybe a -> Either e a
+maybeAEither e = maybe (Left e) Right
 
-        quitarFinal xs = reverse (quitarInicio (reverse xs))
+-- Como buscarClave, pero con un FormatoInvalido si la clave falta (auxiliar interna).
+buscarOError :: String -> [String] -> Either ErrorNivel String
+buscarOError clave ls =
+  maybeAEither (FormatoInvalido ("falta la clave '" ++ clave ++ "'")) (buscarClave clave ls)
 
+-- Separa cabecera y mapa en la línea '---'; falla si falta el separador o el mapa (auxiliar interna).
+separarCabecera :: [String] -> Either ErrorNivel ([String], [String])
+separarCabecera ls = case break (== "---") ls of
+  (_, [])         -> Left (FormatoInvalido "falta el separador '---'")
+  (cabecera, _:r) -> case filter (not . null) r of
+    []   -> Left (FormatoInvalido "no hay mapa tras '---'")
+    mapa -> Right (cabecera, mapa)
 
--- Poner explicaciones de los codigos
+-- Interpreta el texto de un fichero de nivel (cabecera, '---' y mapa).
+parsearFichero :: [String] -> Either ErrorNivel NivelData
+parsearFichero ls = do
+  (cabecera, mapa) <- separarCabecera ls
+  nombre           <- buscarOError "NOMBRE: " cabecera
+  textoFondos      <- buscarOError "FONDOS: " cabecera
+  fs <- maybeAEither (FormatoInvalido "FONDOS contiene valores no numericos")
+                     (mapM readMaybe (splitOn ',' textoFondos))
+  return (NivelData nombre fs (parsearGrid mapa))
 
-contarSiCumple :: (a -> Bool) -> [a] -> Int
-contarSiCumple _ [] = 0
-contarSiCumple condicion (x:xs)
-    | condicion x = 1 + contarSiCumple condicion xs
-    | otherwise = contarSiCumple condicion xs 
+-- Comprueba que el nivel tenga exactamente una meta.
+validarNivel :: NivelData -> Either ErrorNivel NivelData
+validarNivel nd = case length (filter esMeta (concat (gridNivel nd))) of
+  0 -> Left NivelSinMeta
+  1 -> Right nd
+  n -> Left (NivelConVariasMetas n)
 
+-- Interpreta y valida un nivel: parsearFichero seguido de validarNivel.
+parsearNivelCompleto :: [String] -> Either ErrorNivel NivelData
+parsearNivelCompleto ls = parsearFichero ls >>= validarNivel
 
-list2Vector2 :: [Float] -> (Float, Float)
-list2Vector2 [] = error "Lista vacia no posible convertir en Vector2"
-list2Vector2 [_] = error "Falta un elemento en la lista para convertir en Vector2"
-list2Vector2 (x:y:_) = (x, y)
+-- Lado de cada celda del mapa en unidades del mundo.
+tamCelda :: Float
+tamCelda = 40
 
+-- Esquina inferior izquierda de la celda (fila i desde arriba, columna j) en un mapa de total filas.
+posicionCelda :: Int -> Int -> Int -> Vector2D
+posicionCelda total i j = (fromIntegral j * tamCelda, fromIntegral (total - 1 - i) * tamCelda)
 
--- 5 Parseo del Nivel
+-- Una plataforma por cada celda sólida del mapa.
+gridAPlataformas :: Grid -> [Plataforma]
+gridAPlataformas g =
+  [ Plataforma (x, y, tamCelda, tamCelda)
+  | (i, fila) <- zip [0 ..] g
+  , (j, Solido) <- zip [0 ..] fila
+  , let (x, y) = posicionCelda (length g) i j
+  ]
 
-type Nivel = [[Celda]]
-type Celda = Char
+-- Una meta por cada celda META del mapa.
+metasDesdeGrid :: Grid -> [Meta]
+metasDesdeGrid g =
+  [ Meta (posicionCelda (length g) i j)
+  | (i, fila) <- zip [0 ..] g
+  , (j, META) <- zip [0 ..] fila
+  ]
 
-parsearNivel :: [String] -> Nivel
-parsearNivel s = s
+-- Un enemigo patrulla, centrado en su celda, por cada InicioEnemigo del mapa.
+enemigosDesdeGrid :: Grid -> [Enemigo]
+enemigosDesdeGrid g =
+  [ Enemigo ident (x + tamCelda / 2, y + tamCelda / 2) (-40, 0) (tamCelda, tamCelda) Patrulla
+  | (i, fila) <- zip [0 ..] g
+  , (j, InicioEnemigo ident) <- zip [0 ..] fila
+  , let (x, y) = posicionCelda (length g) i j
+  ]
 
-esSolido :: Celda -> Bool
-esSolido c 
-    | c == '#' = True
-    | otherwise = False
+-- BONUS: interpreta y valida varios niveles; devuelve todos o el primer error.
+parsearNiveles :: [[String]] -> Either ErrorNivel [NivelData]
+parsearNiveles = traverse parsearNivelCompleto
 
-esMeta :: Celda -> Bool
-esMeta c 
-    | c == 'M' = True
-    | otherwise = False
-
-esVacio :: Celda -> Bool
-esVacio c
-    | c == '.' = True
-    | otherwise = False
-
-esEnemigo :: Celda -> Bool
-esEnemigo c
-    | c == '.' || c == 'M' || c == '#' = False
-    | otherwise = True
-
-posicionesMeta :: Nivel -> [(Int, Int)]
-posicionesMeta nivel = [(x, y) 
-                    | (fila, x) <- zip nivel [0..],
-                    (celda, y) <- zip fila [0..],
-                    esMeta celda]
-                    
-posicionesEnemigos :: Nivel -> [(Int, Int, Char)]
-posicionesEnemigos nivel = [(x, y, celda) 
-                    | (fila, x) <- zip nivel [0..],
-                    (celda, y) <- zip fila [0..],
-                    esEnemigo celda]
-
-
-
-
-agruparRachas :: String -> [(Int, Int)]
-agruparRachas xs = aux xs 0
-    where
-        aux [] _ = []
-        aux (x:xs) pos
-            | esSolido x = (pos, contarRacha xs 1) : aux (saltarRacha xs) (pos + contarRacha xs 1)
-            | otherwise = aux xs (pos + 1)
-
-        contarRacha [] n = n
-        contarRacha (x:xs) n
-            | x == '#' = contarRacha xs (n + 1)
-            | otherwise = n
-
-        saltarRacha [] = []
-        saltarRacha (x:xs)
-            | x == '#' = saltarRacha xs
-            | otherwise = x:xs
- 
-
--- ============================================================
--- TAREA 2: añadir a continuación del Nivel.hs de la Tarea 1
--- Se asume que ya existen esSolido :: Char -> Bool y esVacio :: Char -> Bool
--- ============================================================
-
--- ------------------------------------------------------------
--- BLOQUE 1: RECURSIÓN
--- ------------------------------------------------------------
-
--- Posiciones (fila, columna) de la meta, con recursión explícita.
-posicionesMetaRec :: [String] -> [(Int, Int)]
-posicionesMetaRec nivel = recorrerFilas 0 nivel
-  where
-    recorrerFilas _ [] = []
-    recorrerFilas f (fila:resto) = recorrerColumnas f 0 fila ++ recorrerFilas (f + 1) resto
-
-    recorrerColumnas _ _ [] = []
-    recorrerColumnas f c (x:xs)
-      | x == 'M'  = (f, c) : recorrerColumnas f (c + 1) xs
-      | otherwise = recorrerColumnas f (c + 1) xs
-
--- Posiciones e identificador de los enemigos (letras mayúsculas salvo la meta 'M'), con recursión explícita.
-posicionesEnemigosRec :: [String] -> [(Int, Int, String)]
-posicionesEnemigosRec nivel = recorrerFilas 0 nivel
-  where
-    recorrerFilas _ [] = []
-    recorrerFilas f (fila:resto) = recorrerColumnas f 0 fila ++ recorrerFilas (f + 1) resto
-
-    recorrerColumnas _ _ [] = []
-    recorrerColumnas f c (x:xs)
-      | esEnemigoChar x = (f, c, [x]) : recorrerColumnas f (c + 1) xs
-      | otherwise       = recorrerColumnas f (c + 1) xs
-
-    esEnemigoChar x = x >= 'A' && x <= 'Z' && x /= 'M'
-
--- Agrupa en (columna de inicio, longitud, carácter) las rachas de caracteres iguales de una fila.
-agruparPorCaracter :: String -> [(Int, Int, Char)]
-agruparPorCaracter fila = agrupar 0 fila
-  where
-    agrupar _ [] = []
-    agrupar i (c:cs) = (i, longitud, c) : agrupar (i + longitud) resto
-      where
-        (iguales, resto) = span (== c) cs
-        longitud = 1 + length iguales
-
--- Un paso de caída libre: la posición avanza con la velocidad actual y la velocidad con la gravedad.
-pasoCaida :: Double -> (Double, Double) -> (Double, Double)
-pasoCaida g (pos, vel) = (pos + vel, vel + g)
-
--- Lista de los n+1 estados (posición, velocidad) de una caída libre con aceleración g.
-simularCaidaLibre :: Int -> Double -> (Double, Double) -> [(Double, Double)]
-simularCaidaLibre n g estado
-  | n <= 0    = [estado]
-  | otherwise = estado : simularCaidaLibre (n - 1) g (pasoCaida g estado)
-
--- Empareja dos listas elemento a elemento, parando cuando se acaba la más corta.
-zipPropio :: [a] -> [b] -> [(a, b)]
-zipPropio (x:xs) (y:ys) = (x, y) : zipPropio xs ys
-zipPropio _      _      = []
-
--- Quita los espacios en blanco (espacio, tabulador, saltos) de ambos extremos de una línea.
-recortar :: String -> String
-recortar = reverse . dropWhile esEspacio . reverse . dropWhile esEspacio
-  where esEspacio c = c == ' ' || c == '\t' || c == '\r' || c == '\n'
-
--- Indica si una línea está vacía (o solo espacios) o es un comentario (empieza por ';').
-esComentarioOVacia :: String -> Bool
-esComentarioOVacia linea = case recortar linea of
-  []      -> True
-  (c : _) -> c == ';'
-
--- Recorta cada línea y descarta las vacías y los comentarios, con recursión explícita.
-prepararLineas :: [String] -> [String]
-prepararLineas [] = []
-prepararLineas (l:ls)
-  | esComentarioOVacia l = resto
-  | otherwise            = recortar l : resto
-  where resto = prepararLineas ls
-
--- ------------------------------------------------------------
--- BLOQUE 2: FUNCIONES DE ORDEN SUPERIOR
--- ------------------------------------------------------------
-
--- Aplica una función a cada elemento de la lista, manteniendo el orden.
-mapPropio :: (a -> b) -> [a] -> [b]
-mapPropio _ []     = []
-mapPropio f (x:xs) = f x : mapPropio f xs
-
--- Se queda con los elementos de la lista que cumplen la condición.
-filterPropio :: (a -> Bool) -> [a] -> [a]
-filterPropio _ [] = []
-filterPropio p (x:xs)
-  | p x       = x : filterPropio p xs
-  | otherwise = filterPropio p xs
-
--- Pliegue por la derecha: f x1 (f x2 (... (f xn z))).
-foldrPropio :: (a -> b -> b) -> b -> [a] -> b
-foldrPropio _ z []     = z
-foldrPropio f z (x:xs) = f x (foldrPropio f z xs)
-
--- Pliegue por la izquierda con acumulador: f (... (f (f z x1) x2) ...) xn.
-foldlPropio :: (b -> a -> b) -> b -> [a] -> b
-foldlPropio _ acc []     = acc
-foldlPropio f acc (x:xs) = foldlPropio f (f acc x) xs
-
--- Indica si dos cajas (x, y, ancho, alto) se solapan (auxiliar; usa tu detector de colisión de la Tarea 1 si lo prefieres).
-cajasSolapan :: (Double, Double, Double, Double) -> (Double, Double, Double, Double) -> Bool
-cajasSolapan (x1, y1, w1, h1) (x2, y2, w2, h2) =
-  x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1
-
--- Indica si la caja colisiona con alguna de la lista.
--- Justificación: se usa foldr porque combina con (||), que es perezoso en su segundo argumento:
--- en cuanto una caja colisiona, foldr no evalúa el resto de la lista (cortocircuito), cosa que
--- foldl no puede hacer porque debe recorrer toda la lista para devolver el acumulador final.
-hayColisionConAlguna :: (Double, Double, Double, Double) -> [(Double, Double, Double, Double)] -> Bool
-hayColisionConAlguna caja obstaculos = foldr combina False obstaculos
-  where combina obstaculo resto = cajasSolapan caja obstaculo || resto
-
--- Cuenta las celdas del nivel que cumplen la condición.
--- Justificación: se usa foldl porque es una acumulación numérica simple: se arrastra un contador
--- desde el principio, sin cortocircuito posible (hay que mirar todas las celdas) ni estructura
--- que reconstruir, que es lo que sí justificaría foldr.
-contarCeldasQueCumplen :: (Char -> Bool) -> [String] -> Int
-contarCeldasQueCumplen cond nivel = foldl sumaFila 0 nivel
-  where
-    sumaFila acc fila = acc + contarFila fila
-    contarFila fila   = foldl cuenta 0 fila
-    cuenta acc c
-      | cond c    = acc + 1
-      | otherwise = acc
+-- BONUS: todas las posiciones (fila, columna) de una rejilla rectangular, por filas.
+todasLasPosiciones :: Grid -> [(Int, Int)]
+todasLasPosiciones g = (,) <$> [0 .. length g - 1] <*> [0 .. columnas - 1]
+  where columnas = length (concat (take 1 g))
