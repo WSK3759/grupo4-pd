@@ -51,7 +51,7 @@ conVelocidad v j = j { velJugador = v }
 -- moverJugador
 moverJugador :: Float -> Jugador -> Jugador
 moverJugador dt j = 
-    let desplazamiento = escalarVector (realToFrac dt) (velJugador j)
+    let desplazamiento = escalarVector dt (velJugador j)
         nuevaPos = sumaVectores (posJugador j) desplazamiento
     in j { posJugador = nuevaPos }
 
