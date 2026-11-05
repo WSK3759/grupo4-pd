@@ -101,7 +101,7 @@ parsearNivelCompleto lineas = parsearFichero lineas >>= validarNivel
 -- BLOQUE 3 
 -- Subtarea 6A
 
-tamCelda :: Double
+tamCelda :: Float
 tamCelda = 40
 
 -- posicionCelda
