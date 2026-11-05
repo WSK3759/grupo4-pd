@@ -13,7 +13,7 @@ import qualified Nivel as N
 
 -- BLOQUE 3 — Subtarea 6B
 
--- Definición del tipo Mundo (necesario para la función dibujarMundo)
+-- Definición del tipo Mundo 
 data Mundo = Mundo
   { jugadorM     :: Jugador
   , enemigosM    :: [Enemigo]
@@ -36,7 +36,6 @@ mundoInicial nd = Mundo
   where g = N.gridNivel nd
 
 -- actualizarMundo
--- actualizarMundo corregido usando moverJugador para el jugador
 actualizarMundo :: Float -> Mundo -> Mundo
 actualizarMundo dt m = 
     if estadoM m /= Jugando
