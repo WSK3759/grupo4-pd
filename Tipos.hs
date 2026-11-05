@@ -15,13 +15,13 @@ module Tipos
   , esEnemigo
   ) where
 
-type Vector2D = (Double, Double)
-type BoundingBox = (Double, Double, Double, Double) -- (x, y, ancho, alto)
+type Vector2D = (Float, Float)
+type BoundingBox = (Float, Float, Float, Float) -- (x, y, ancho, alto)
 
 sumaVectores :: Vector2D -> Vector2D -> Vector2D
 sumaVectores v1 v2 = (fst v1 + fst v2, snd v1 + snd v2)
 
-escalarVector :: Double -> Vector2D -> Vector2D
+escalarVector :: Float -> Vector2D -> Vector2D
 escalarVector x v = (x * fst v, x * snd v)
 
 -- TAREA 3
@@ -82,4 +82,3 @@ data EstadoJuego
     | GameOver 
     | NivelCompletado 
     deriving (Eq, Show)
-
