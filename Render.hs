@@ -14,7 +14,7 @@ dibujarObjeto col o =
     let (x, y, w, h) = boundingBox o
         centroX = x + w / 2
         centroY = y + h / 2
-    in Translate (realToFrac centroX) (realToFrac centroY) (Color col (rectangleSolid (realToFrac w) (realToFrac h)))
+    in Translate centroX centroY (Color col (rectangleSolid w h))
 
 -- dibujarHUD
 dibujarHUD :: Jugador -> Picture
@@ -32,7 +32,7 @@ mensajeEstado NivelCompletado = Just "NIVEL COMPLETADO"
 dibujarMundo :: Mundo -> Picture
 dibujarMundo m = 
     let (px, py) = posJugador (jugadorM m)
-        escena = Translate (realToFrac (-px)) (realToFrac (-py)) (Pictures 
+        escena = Translate (-px) (-py) (Pictures 
             [ Pictures (map (dibujarObjeto (greyN 0.5)) (plataformasM m))
             , Pictures (map (dibujarObjeto green) (metasM m))
             , Pictures (map (dibujarObjeto red) (enemigosM m))
