@@ -50,7 +50,7 @@ instance Objeto Enemigo where
             (w, h) = dimEnemigo e
         in (x - w / 2, y - h / 2, w, h)
     animar dt e = 
-        let desplazamiento = escalarVector (realToFrac dt) (velEnemigo e)
+        let desplazamiento = escalarVector dt (velEnemigo e)
             nuevaPos = sumaVectores (posEnemigo e) desplazamiento
         in e { posEnemigo = nuevaPos }
 
